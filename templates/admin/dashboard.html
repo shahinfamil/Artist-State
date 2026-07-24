@@ -1,0 +1,210 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}داشبورد مدیریت{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  {% if not artist %}
+    <div class="admin-card">
+      <h2>برای شروع، اطلاعات آرتیست را وارد کنید</h2>
+      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-primary">افزودن اطلاعات آرتیست</a>
+    </div>
+  {% else %}
+    <div class="admin-dashboard" id="admin-dashboard">
+      <section class="admin-card admin-tab-panel is-active" data-tab-panel="overview">
+        <section class="artist-summary artist-summary--hero">
+          <img src="{{ artist.avatar_url }}" alt="">
+          <div>
+            <p class="eyebrow">نمای کلی</p>
+            <p class="muted">{% set bio_text = artist.bio or '' %}{{ bio_text[:120] }}{% if bio_text|length > 120 %}…{% endif %}</p>
+          </div>
+        </section>
+
+        <section class="admin-summary-grid-4 admin-summary-grid--wide" aria-label="آمار سریع">
+          <div class="admin-card admin-stat-card admin-stat-card--muted">
+            <div class="admin-stat-card__top">
+              <span class="admin-stat-card__label">آهنگ ها</span>
+            </div>
+            <span class="admin-stat-card__value">{{  tracks|length  }}</span>
+            <p class="admin-stat-card__description">کل ترک‌های منتشر شده</p> 
+          </div>
+          <div class="admin-card admin-stat-card admin-stat-card--accent">
+            <div class="admin-stat-card__top">
+              <span class="admin-stat-card__label">تعداد آلبوم‌ها</span>
+            </div>
+            <span class="admin-stat-card__value">{{ full_albums|length }}</span>
+            <p class="admin-stat-card__description">تعداد آلبوم‌های منتشر شده</p>
+          </div>
+          <div class="admin-card admin-stat-card admin-stat-card--highlight">
+              <div class="admin-stat-card__top">
+                <span class="admin-stat-card__label">تعداد آلبوم کوتاه</span>
+              </div>
+              <span class="admin-stat-card__value">{{ eps|length }}</span>
+              <p class="admin-stat-card__description">تعداد آلبوم‌های کوتاه (EPs) منتشر شده</p>
+            </div>
+          <div class="admin-card admin-stat-card admin-stat-card--contrast">
+            <div class="admin-stat-card__top">
+              <span class="admin-stat-card__label">تعداد تک‌آهنگ‌ها</span>
+            </div>
+            <span class="admin-stat-card__value">{{ singles|length }}</span>
+            <p class="admin-stat-card__description">کل تک‌آهنگ‌های منتشر شده</p>
+          </div>
+          
+        </section>
+
+        {% if dashboard_stats %}
+        <section class="admin-card admin-section-card" aria-label="آمار جزئی‌تر ترک‌ها">
+          <div class="admin-section-head">
+            <div>
+              <h2>آمار</h2>
+              <p class="muted">پراکندگی ژانر، همکاری و موزیک ویدیوها</p>
+            </div>
+            <span class="analytics-panel__chip">پیشخوان آماری</span>
+          </div>
+
+          <section class="admin-summary-grid-3 admin-summary-grid--wide">
+            <div class="admin-card admin-stat-card admin-stat-card--highlight">
+              <div class="admin-stat-card__top">
+                <span class="admin-stat-card__label">تعداد همکاری</span>
+              </div>
+              <span class="admin-stat-card__value">{{ dashboard_stats.featured_stats.featured }}</span>
+              <p class="admin-stat-card__description">تعداد آهنگ‌هایی که دارای همکاری</p>
+            </div>
+            <div class="admin-card admin-stat-card admin-stat-card--accent">
+              <div class="admin-stat-card__top">
+                <span class="admin-stat-card__label">ژانرهای متفاوت</span>
+              </div>
+              <span class="admin-stat-card__value">{{ dashboard_stats.genre_stats|length }}</span>
+              <p class="admin-stat-card__description">مجموع ژانرهای ثبت‌شده</p>
+            </div>
+            <div class="admin-card admin-stat-card admin-stat-card--muted">
+              <div class="admin-stat-card__top">
+                <span class="admin-stat-card__label">موزیک ویدیو</span>
+              </div>
+              <span class="admin-stat-card__value">{{ dashboard_stats.music_video_stats.has_mv }}</span>
+              <p class="admin-stat-card__description">تعداد موزیک ویدیوها</p>
+            </div>
+          </section>
+
+          {% set genre_max = dashboard_stats.genre_stats[0].count if dashboard_stats.genre_stats else 0 %}
+          {% set year_max = dashboard_stats.year_stats[0].count if dashboard_stats.year_stats else 0 %}
+          <div class="admin-dashboard-grid">
+            <div class="dashboard-chart-card">
+              <div class="admin-card-header">
+                <h2>نمودار ژانرها</h2>
+              </div>
+              <div class="genre-bar-chart">
+                <div class="genre-bar-chart__header">
+                  <span class="genre-bar-chart__hint">پراکندگی سبک‌ها بر اساس تعداد ترک‌ها</span>
+                  <span class="genre-bar-chart__legend">{{ dashboard_stats.genre_stats|length }} ژانر</span>
+                </div>
+                <div class="genre-bar-chart__bars">
+                  <div class="genre-bar-chart__track">
+                    {% for item in dashboard_stats.genre_stats %}
+                    <div class="genre-bar-chart__bar">
+                      <div class="genre-bar-chart__value font-en">{{ item.count }}</div>
+                      <div class="genre-bar-chart__column-wrap">
+                        <div class="genre-bar-chart__column" style="height: {{ (item.count / genre_max * 100) if genre_max else 0 }}%;"></div>
+                      </div>
+                      <div class="genre-bar-chart__name">{{ item.genre }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dashboard-chart-card">
+              <div class="admin-card-header">
+                <h2>نمودار سال انتشار</h2>
+              </div>
+              <div class="genre-bar-chart">
+                <div class="genre-bar-chart__header">
+                  <span class="genre-bar-chart__hint">تعداد ترک‌های منتشرشده بر اساس سال تولید</span>
+                  <span class="genre-bar-chart__legend">{{ dashboard_stats.year_stats|length }} سال</span>
+                </div>
+                <div class="genre-bar-chart__bars">
+                  <div class="genre-bar-chart__track">
+                    {% for item in dashboard_stats.year_stats %}
+                    <div class="genre-bar-chart__bar">
+                      <div class="genre-bar-chart__value font-en">{{ item.count }}</div>
+                      <div class="genre-bar-chart__column-wrap">
+                        <div class="genre-bar-chart__column" style="height: {{ (item.count / year_max * 100) if year_max else 0 }}%;"></div>
+                      </div>
+                      <div class="genre-bar-chart__name font-en">{{ item.year }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dashboard-chart-card collaboration-chart-card">
+              <div class="admin-card-header">
+                <h2>نمودار همکاری</h2>
+              </div>
+                <div class="collaboration-grid">
+                  <div class="collaboration-chart">
+                    {% set solo_percent = dashboard_stats.collaboration_breakdown[0].percent|default(0) %}
+                    {% set collaboration_percent = dashboard_stats.collaboration_breakdown[1].percent|default(0) %}
+                    {% set shah_percent = dashboard_stats.featured_stats.the_shah_chart_percent|default(0) %}
+                    {% set shah_solo_percent = dashboard_stats.featured_stats.the_shah_chart_solo_percent|default(0) %}
+                    {% set collaboration_start = solo_percent %}
+                    <div class="donut-chart collaboration-donut-chart" role="img" aria-label="نمودار دایره‌ای همکاری‌ها">
+                      <div class="collaboration-donut-visual" style="background: conic-gradient(#ff5a5f 0 {{ solo_percent }}%, #8b5cf6 {{ solo_percent }}% {{ solo_percent + collaboration_percent }}%);">
+                        <div class="collaboration-donut-overlay" style="background: conic-gradient(transparent 0 {{ solo_percent }}%, rgba(250,204,21,0.95) {{ solo_percent }}% {{ solo_percent + shah_percent }}%, transparent {{ solo_percent + shah_percent }}% 100%);"></div>
+                        <div class="collaboration-donut-overlay collaboration-donut-overlay--solo" style="background: conic-gradient(rgba(250,204,21,0.95) 0 {{ shah_solo_percent }}%, transparent {{ shah_solo_percent }}% 100%);"></div>
+                        <div class="collaboration-donut-center">
+                          <div>
+                            <strong>{{ dashboard_stats.featured_stats.collaboration_percent }}%</strong>
+                            <span>همکاری</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="collaboration-legend">
+                      {% for item in dashboard_stats.collaboration_breakdown %}
+                      <div class="collaboration-legend-item">
+                        <span class="collaboration-legend-swatch" style="background: {{ item.color }};"></span>
+                        <div>
+                          <p><span class="font-en">{{ item.count }}<span class="font-en">({{ item.percent }}%)</span></span>{{ item.name }}</p>
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                    {% if dashboard_stats.featured_stats.the_shah or dashboard_stats.featured_stats.the_shah_with_featured %}
+                    <div class="collaboration-legend-item collaboration-legend-item--accent collaboration-legend-item--full-width">
+                      <span class="collaboration-legend-swatch collaboration-legend-swatch--accent"></span>
+                      <div>
+                        <p><strong>The Shah</strong><span class="font-en">{{ dashboard_stats.featured_stats.the_shah_solo }}({{ dashboard_stats.featured_stats.the_shah_chart_solo_percent }}%) بدون همکاری </span> · <span class="font-en">{{ dashboard_stats.featured_stats.the_shah_with_featured }}({{ dashboard_stats.featured_stats.the_shah_chart_percent }}%) با همکاری</span></p>
+                      </div>
+                    </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="collaboration-partner-breakdown collaboration-partner-breakdown--compact">
+                    {% set partner_list = dashboard_stats.featured_artist_breakdown %}
+                    {% if partner_list %}
+                    {% for partner in partner_list|sort(attribute='count', reverse=True) %}
+                    <div class="collaboration-artist-item collaboration-artist-item--chip">
+                      <div class="collaboration-artist-meta">
+                        <strong class="collaboration-artist-name">{{ partner.name }}</strong>
+                        <span class="collaboration-artist-count font-en">{{ partner.count }}</span>
+                      </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}?v=20260717"></script>
+{% endblock %}

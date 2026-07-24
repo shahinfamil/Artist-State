@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+  <div class="container" style="max-width:780px; margin: 40px auto;">
+    <h1>حساب کاربری</h1>
+
+    {% if status_message %}
+      <div class="status-message success" style="margin:16px 0;">{{ status_message }}</div>
+    {% endif %}
+    {% if status_error %}
+      <div class="status-message error" style="margin:16px 0;">{{ status_error }}</div>
+    {% endif %}
+
+    <div class="account-grid">
+      <div class="account-card">
+        <h2>اطلاعات حساب</h2>
+        <p><strong>نام کاربری:</strong> {{ user.username or '—' }}</p>
+        <p><strong>ایمیل:</strong> {{ user.email }}</p>
+        <p><strong>وضعیت:</strong> {% if user.is_premium %}<span class="gold">پریمیوم</span>{% else %}عادی{% endif %}</p>
+        <p><strong>عضویت از:</strong> {{ user.created_at|format_date_short }}</p>
+        {% if not user.is_premium %}
+        <form method="post" action="{{ url_for('upgrade') }}" style="margin-top:18px;">
+          <button type="submit" class="pill">ارتقا به پریمیوم</button>
+        </form>
+        {% endif %}
+      </div>
+
+      <div class="account-card">
+        <h2>ویرایش نام کاربری</h2>
+        <form method="post">
+          <input type="hidden" name="section" value="username">
+          <label>نام کاربری
+            <input type="text" name="username" value="{{ user.username or '' }}" required>
+          </label>
+          <button type="submit" class="pill">ذخیره نام کاربری</button>
+        </form>
+      </div>
+
+      <div class="account-card">
+        <h2>ویرایش ایمیل</h2>
+        <form method="post">
+          <input type="hidden" name="section" value="email">
+          <label>ایمیل جدید
+            <input type="email" name="email" value="{{ user.email }}" required>
+          </label>
+          <button type="submit" class="pill">ذخیره ایمیل</button>
+        </form>
+      </div>
+
+      <div class="account-card">
+        <h2>تغییر رمز عبور</h2>
+        <form method="post">
+          <input type="hidden" name="section" value="password">
+          <label>رمز عبور فعلی
+            <input type="password" name="current_password" required>
+          </label>
+          <label>رمز عبور جدید
+            <input type="password" name="new_password" required>
+          </label>
+          <label>تکرار رمز عبور جدید
+            <input type="password" name="confirm_password" required>
+          </label>
+          <button type="submit" class="pill">تغییر رمز</button>
+        </form>
+      </div>
+    </div>
+
+    <p style="margin-top: 24px;"><a href="{{ url_for('logout') }}" class="pill">خروج</a></p>
+  </div>
+</section>
+{% endblock %}

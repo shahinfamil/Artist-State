@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}ژانرها — {{ artist.name }}{% endblock %}
+{% block content %}
+<section class="album-hero">
+  <div class="container">
+    <p class="eyebrow">دسته‌بندی آهنگ</p>
+    <h1>سبک‌ها</h1>
+    <p class="muted">ترک‌های {{ artist.name }} بر اساس سبک دسته‌بندی شده‌اند.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="genre-grid">
+      {% for genre_name, tracks in genres %}
+      <a href="{{ url_for('genre_detail', genre_name=genre_name) }}" class="genre-card">
+        <div class="genre-card-cover-stack">
+          {% for t in tracks[:3] %}
+            <img src="{{ t.cover_url }}" alt="">
+          {% endfor %}
+        </div>
+        <h3>{{ genre_name }}</h3>
+        <p class="muted">{{ tracks|length }} آهنگ</p>
+      </a>
+      {% else %}
+      <p class="empty-state">هنوز هیچ آهنگ سبک ندارد.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

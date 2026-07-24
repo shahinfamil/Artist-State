@@ -1,0 +1,181 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}اطلاعات ویکی‌پدیا{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  <div class="admin-card">
+    <div class="admin-section-head">
+      <div>
+        <p class="eyebrow">مدیریت محتوای ویکی‌پدیا</p>
+        <h2>اطلاعات ویکی‌پدیا</h2>
+      </div>
+      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-ghost btn-sm">ویرایش اطلاعات آرتیست</a>
+    </div>
+
+    <form id="wikipedia-info-form" action="{{ url_for('admin.wikipedia_info_page') }}" method="POST" enctype="multipart/form-data" class="admin-form" data-refresh-url="{{ url_for('admin.refresh_wikipedia_social_counts') }}" data-upload-url="{{ url_for('admin.upload_wikipedia_media') }}">
+      <div class="form-grid-2">
+      <label>عنوان صفحهٔ ویکی‌پدیا
+        <input type="text" name="wikipedia_title" value="{{ wikipedia_record.title if wikipedia_record else '' }}" placeholder="عنوان صفحه">
+      </label>
+      <label>لینک تصویر
+        <input type="text" name="wikipedia_image_url" value="{{ wikipedia_record.image_url if wikipedia_record else '' }}" placeholder="https://... یا مسیر فایل">
+        <div id="wikipedia-image-drop-area" class="image-url-drop-area image-url-dropzone" data-target-input="wikipedia_image_url" tabindex="0" aria-label="منطقه درگ و دراپ تصویر">
+          <span class="image-url-dropzone-label">فایل را بکشید و رها کنید یا کلیک کنید</span>
+          <div class="image-url-preview"></div>
+        </div>
+      </label>
+      <input type="file" id="wikipedia-image-upload-input" accept="image/*" hidden>
+      </div>
+      <div class="wiki-social-admin-table-wrapper">
+        <div class="wiki-social-admin-table-header">
+          <h3>آمار اجتماعی</h3>
+          <button type="button" class="btn btn-secondary refresh-all-social-counts">🔄 بروزرسانی همه</button>
+        </div>
+        <table class="wiki-social-admin-table">
+          <thead>
+            <tr>
+              <th>پلتفرم</th>
+              <th>تعداد</th>
+              <th>اقدامات</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="social-row" data-field="instagram_followers">
+              <td>اینستاگرام</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.instagram_followers|format_number if wikipedia_record.instagram_followers is not none else '' }}</span>
+                <input type="hidden" name="instagram_followers" value="{{ wikipedia_record.instagram_followers or '' }}">
+                <div class="social-status" data-status-for="instagram_followers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="instagram_followers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="instagram" title="بروزرسانی فالوور اینستاگرام">🔄</button>
+              </td>
+            </tr>
+            <tr class="social-row" data-field="youtube_subscribers">
+              <td>یوتیوب</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.youtube_subscribers|format_number if wikipedia_record.youtube_subscribers is not none else '' }}</span>
+                <input type="hidden" name="youtube_subscribers" value="{{ wikipedia_record.youtube_subscribers or '' }}">
+                <div class="social-status" data-status-for="youtube_subscribers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="youtube_subscribers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="youtube" title="{% if not artist.youtube_channel_url %}لینک یوتیوب تنظیم نشده{% else %}بروزرسانی سابسکرایب یوتیوب{% endif %}" {% if not artist.youtube_channel_url %}disabled aria-disabled="true"{% endif %}>🔄</button>
+              </td>
+            </tr>
+            <tr class="social-row" data-field="facebook_followers">
+              <td>فیسبوک</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.facebook_followers|format_number if wikipedia_record.facebook_followers is not none else '' }}</span>
+                <input type="hidden" name="facebook_followers" value="{{ wikipedia_record.facebook_followers or '' }}">
+                <div class="social-status" data-status-for="facebook_followers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="facebook_followers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="facebook" title="{% if not artist.facebook %}لینک فیسبوک تنظیم نشده{% else %}بروزرسانی فالوور فیسبوک{% endif %}" {% if not artist.facebook %}disabled aria-disabled="true"{% endif %}>🔄</button>
+              </td>
+            </tr>
+            <tr class="social-row" data-field="spotify_followers">
+              <td>اسپاتیفای</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.spotify_followers|format_number if wikipedia_record.spotify_followers is not none else '' }}</span>
+                <input type="hidden" name="spotify_followers" value="{{ wikipedia_record.spotify_followers or '' }}">
+                <div class="social-status" data-status-for="spotify_followers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="spotify_followers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="spotify" title="{% if not artist.spotify_artist_url %}لینک اسپاتیفای تنظیم نشده{% else %}بروزرسانی فالور اسپاتیفای{% endif %}" {% if not artist.spotify_artist_url %}disabled aria-disabled="true"{% endif %}>🔄</button>
+              </td>
+            </tr>
+            <tr class="social-row" data-field="soundcloud_followers">
+              <td>ساندکلاد</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.soundcloud_followers|format_number if wikipedia_record.soundcloud_followers is not none else '' }}</span>
+                <input type="hidden" name="soundcloud_followers" value="{{ wikipedia_record.soundcloud_followers or '' }}">
+                <div class="social-status" data-status-for="soundcloud_followers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="soundcloud_followers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="soundcloud" title="بروزرسانی فالور ساندکلاد">🔄</button>
+              </td>
+            </tr>
+            <tr class="social-row" data-field="x_followers">
+              <td>ایکس</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.x_followers|format_number if wikipedia_record.x_followers is not none else '' }}</span>
+                <input type="hidden" name="x_followers" value="{{ wikipedia_record.x_followers or '' }}">
+                <div class="social-status" data-status-for="x_followers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="x_followers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="x" title="بروزرسانی آمار ایکس">🔄</button>
+              </td>
+            </tr>
+            <tr class="social-row" data-field="tiktok_followers">
+              <td>تیک‌تاک</td>
+              <td>
+                <span class="social-count-display">{{ wikipedia_record.tiktok_followers|format_number if wikipedia_record.tiktok_followers is not none else '' }}</span>
+                <input type="hidden" name="tiktok_followers" value="{{ wikipedia_record.tiktok_followers or '' }}">
+                <div class="social-status" data-status-for="tiktok_followers"></div>
+              </td>
+              <td>
+                <button type="button" class="btn btn-icon edit-social" data-field="tiktok_followers" title="ویرایش">✏️</button>
+                <button type="button" class="btn btn-icon refresh-social-counts" data-platform="tiktok" title="بروزرسانی فالور تیک‌تاک">🔄</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="social-refresh-status" class="form-hint"></div>
+      </div>
+      <label>زندگینامه
+        <div class="ckeditor-editor-wrapper">
+          <div class="ckeditor-upload-actions">
+            <button type="button" id="ckeditor-upload-image" class="btn btn-secondary ckeditor-upload-icon-button" title="آپلود تصویر">🖼️</button>
+            <button type="button" id="ckeditor-upload-video" class="btn btn-secondary ckeditor-upload-icon-button" title="آپلود ویدیو">🎬</button>
+          </div>
+          <div id="wikipedia-timeline-editor" class="ckeditor-editor">{% if wikipedia_record %}{{ wikipedia_record.timeline_section|safe }}{% endif %}</div>
+        </div>
+        <input type="file" id="ckeditor-upload-input" accept="image/*,video/*" hidden>
+        <textarea id="wikipedia-timeline-section" name="wikipedia_timeline_section" hidden>{{ wikipedia_record.timeline_section if wikipedia_record else '' }}</textarea>
+      </label>
+      <div class="wiki-infobox-editor">
+        <h3>ویرایش اینفو باکس ویکی‌پدیا</h3>
+        <div id="infobox-rows">
+          {% if infobox_items %}
+            {% for item in infobox_items %}
+            <div class="infobox-row">
+              <button type="button" class="remove-infobox-row" title="حذف">
+                🗑
+              </button>
+              <input type="text" name="infobox_key[]" value="{{ item.key }}" placeholder="عنوان">
+              <input type="text" name="infobox_value[]" value="{{ item.value }}" placeholder="مقدار">
+              <span class="infobox-row-handle" title="جابجایی">☰</span>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="infobox-row">
+              <button type="button" class="remove-infobox-row" title="حذف">
+                🗑
+              </button>
+              <input type="text" name="infobox_key[]" placeholder="عنوان">
+              <input type="text" name="infobox_value[]" placeholder="مقدار">
+              <span class="infobox-row-handle" title="جابجایی">☰</span>
+            </div>
+          {% endif %}
+        </div>
+        <button type="button" id="add-infobox-row" class="btn btn-secondary">+ افزودن سطر</button>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">ذخیره</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<script src="{{ url_for('static', filename='js/admin-wikipedia-info.js') }}?v=20260716"></script>
+{% endblock %}

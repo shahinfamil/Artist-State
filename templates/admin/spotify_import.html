@@ -1,0 +1,23 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}وارد کردن خودکار از اسپاتیفای{% endblock %}
+{% block content %}
+<div class="admin-container">
+  <div class="admin-card">
+    <h2>وارد کردن خودکار آلبوم‌ها و ترک‌ها از اسپاتیفای</h2>
+    <form method="POST" class="admin-form">
+      <div class="form-grid-2" style="align-items:end;">
+        <label>لینک آلبوم یا آهنگ در اسپاتیفای *
+          <input type="url" name="spotify_url" required
+                 placeholder="https://open.spotify.com/album/..."
+                 value="{{ artist.spotify_artist_url if artist else '' }}">
+        </label>
+        <button type="submit" class="btn btn-primary" id="import-submit-btn">استخراج و وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-spotify-import.js') }}?v=20260717"></script>
+{% endblock %}

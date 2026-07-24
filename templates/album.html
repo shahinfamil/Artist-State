@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="album-hero">
+  <div class="container album-hero-inner">
+    <img src="{{ album.cover_url }}" class="album-hero-cover" alt="{{ album.title }}">
+    <div>
+      <p class="eyebrow">
+        {{ album.title }} | 
+        {% if album.release_type == 'single' %}
+          Single
+        {% elif album.release_type == 'ep' %}
+          EP
+        {% elif album.release_type == 'album' %}
+          Album
+        {% elif tracks|length <= 1 %}
+          Single
+        {% elif tracks|length <= 4 %}
+          Ep
+        {% else %}
+          Album
+        {% endif %}
+      </p>
+      <h1>{{ album.title }}</h1>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="track-list">
+      {% for track in tracks %}
+      {% set stats = track.latest_stats() %}
+      {% set total = track.total_views() %}
+      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+        <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+        <div class="track-cover-wrap">
+          <img class="track-cover" src="{{ track.cover_url }}" alt="">
+          {% if track.is_the_shah %}
+          <span class="cover-badge" aria-label="The Shah">
+            <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+          </span>
+          {% endif %}
+        </div>
+        <span class="track-info">
+          <span class="track-title-row">
+            <span class="track-title">{{ track.title }}</span>
+          </span>
+          <span class="track-album date-display">{{ track.duration or "" }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {{ track.display_artist_name }}</span>
+        </span>
+        <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
+          {% set sp = stats.spotify or 0 %}
+          {% set yt = stats.youtube or 0 %}
+          {% set sc = stats.soundcloud or 0 %}
+          {% set t = (sp + yt + sc) or 1 %}
+          <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
+          <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
+          <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
+        </span>
+        <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

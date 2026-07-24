@@ -1,0 +1,21 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}ورود به پنل مدیریت{% endblock %}
+{% block content %}
+<div class="login-screen">
+  <form method="POST" class="login-card">
+    <p class="eyebrow">پنل مدیریت</p>
+    <h1>ورود</h1>
+    <label>نام کاربری
+      <input type="text" name="username" autocomplete="username" required>
+    </label>
+    <label>رمز عبور
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" class="btn btn-primary">ورود</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-login.js') }}?v=20260717"></script>
+{% endblock %}

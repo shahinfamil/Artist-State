@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual Environment
+.venv/
+venv/
+env/
+myenv/
+ENV/
+
+# Database (SQLite) - مهم!
+*.db
+data.db
+instance/
+
+# Environment variables
+.env
+.env.local
+
+# VS Code
+.vscode/
+
+# Tests
+tests/
+
+# Migrations (اگر لازم نیست همه رو آپلود کنی، ولی فعلاً نگه دار)
+# migrations/   ← فعلاً کامنت باشه تا ببینیم
+
+# Logs and cache
+*.log
+.scrapy/
+
+# Deployment
+.render
+staticfiles/
+

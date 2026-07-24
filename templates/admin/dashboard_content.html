@@ -1,0 +1,123 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}مدیریت آلبوم‌ها و آهنگ‌ها{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  {% if not artist %}
+    <div class="admin-card">
+      <h2>برای شروع، اطلاعات آرتیست را وارد کنید</h2>
+      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-primary">افزودن اطلاعات آرتیست</a>
+    </div>
+  {% else %}
+    <div class="admin-dashboard" id="admin-dashboard">
+      <section class="admin-card admin-tab-panel is-active" data-tab-panel="content">
+        <div class="admin-section-head">
+          <div>
+            <p class="eyebrow">محتوای موسیقی</p>
+            <h2>آلبوم‌ها و آهنگ‌ها</h2>
+          </div>
+          <div class="admin-section-head__actions">
+            <a href="{{ url_for('admin.album_new', next_tab='content') }}" class="btn btn-primary btn-sm">افزودن دستی آلبوم</a>
+            <a href="{{ url_for('admin.spotify_import', next_tab='content') }}" class="btn btn-outline btn-sm">وارد کردن خودکار از اسپاتیفای</a>
+            <form method="POST" action="{{ url_for('admin.trigger_update') }}" onsubmit="return confirm('آپدیت اتوماتیک آمار شروع شود؟ ممکن است چند دقیقه طول بکشد.');" class="admin-inline-form">
+              <button type="submit" class="btn btn-outline btn-sm">آپدیت اتوماتیک آمار بازدیدها</button>
+            </form>
+            <p class="muted">{{ albums|length }} آلبوم در دسترس</p>
+          </div>
+        </div>
+
+        <div class="admin-content-search">
+          <input type="search" id="contentLiveSearch" placeholder="جست‌وجوی آلبوم یا آهنگ..." autocomplete="off">
+          <span class="muted">تایپ کنید تا فیلتر شود</span>
+        </div>
+
+        {% for album in albums %}
+        <div class="album-block" data-album-title="{{ album.title }}">
+          <div class="album-block-head">
+            <img src="{{ album.cover_url }}" alt="">
+            <div>
+              <h3>{{ album.title }}</h3>
+            </div>
+            <div class="album-block-actions">
+              <a href="{{ url_for('admin.track_new', album_id=album.id, next_tab='content') }}" class="btn btn-primary btn-xs" title="افزودن آهنگ جدید">＋</a>
+              <a href="{{ url_for('admin.album_edit', album_id=album.id, next=request.full_path, next_tab='content') }}" class="btn btn-ghost btn-xs" title="ویرایش آلبوم">✎</a>
+              <form method="POST" action="{{ url_for('admin.album_delete', album_id=album.id) }}" onsubmit="return confirm('این آلبوم و تمام آهنگ‌های آن حذف شود؟');">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <input type="hidden" name="next_tab" value="content">
+                <button type="submit" class="btn btn-danger btn-xs" title="حذف آلبوم">🗑</button>
+              </form>
+            </div>
+          </div>
+
+          {% if album.tracks %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr><th>عنوان</th><th>نام هنری</th><th>سبک</th><th>مدت</th><th>تاریخ</th><th>اسپاتیفای</th><th>یوتیوب</th><th>ساندکلود</th><th>ابزار</th></tr>
+              </thead>
+              <tbody>
+                {% for track in album.tracks %}
+                <tr class="admin-track-row {% if not track.is_active %}is-inactive{% endif %}" data-track-id="{{ track.id }}" data-track-title="{{ track.title }}" draggable="true">
+                  <td>{{ track.title }}</td>
+                  <td>{{ track.display_artist_name }}</td>
+                  <td>{{ track.genre if track.genre else '—' }}</td>
+                  <td>{{ track.duration or '—' }}</td>
+                  <td><p class="date-display">{{ track.release_date|format_date_short if track.release_date else '—' }}</p></td>
+                  <td class="platform-stat-cell">
+                    <div class="platform-stat-stack">
+                      <span class="platform-stat-value" data-track-id="{{ track.id }}" data-platform="spotify">{{ (track.latest_stats().get('spotify') or 0)|format_number }}</span>
+                      <form class="js-update-views-form" method="POST" action="{{ url_for('admin.update_track_views', track_id=track.id, platform='spotify') }}" style="display:inline-block;">
+                        <button type="submit" class="btn btn-ghost btn-compact js-update-views-btn" data-platform="spotify" data-label="↻" title="{% if (track.spotify_url or '')|trim %}به‌روزرسانی اسپاتیفای{% else %}لینک اسپاتیفای تنظیم نشده{% endif %}" {% if not ((track.spotify_url or '')|trim) %}disabled{% endif %} aria-disabled="{% if not ((track.spotify_url or '')|trim) %}true{% else %}false{% endif %}"><span class="btn-label">↻</span></button>
+                      </form>
+                    </div>
+                  </td>
+                  <td class="platform-stat-cell">
+                    <div class="platform-stat-stack">
+                      <span class="platform-stat-value" data-track-id="{{ track.id }}" data-platform="youtube">{{ (track.latest_stats().get('youtube') or 0)|format_number }}</span>
+                      <form class="js-update-views-form" method="POST" action="{{ url_for('admin.update_track_views', track_id=track.id, platform='youtube') }}" style="display:inline-block;">
+                        <button type="submit" class="btn btn-ghost btn-compact js-update-views-btn" data-platform="youtube" data-label="↻" title="{% if (track.youtube_url or '')|trim %}به‌روزرسانی یوتیوب{% else %}لینک یوتیوب تنظیم نشده{% endif %}" {% if not ((track.youtube_url or '')|trim) %}disabled{% endif %} aria-disabled="{% if not ((track.youtube_url or '')|trim) %}true{% else %}false{% endif %}"><span class="btn-label">↻</span></button>
+                      </form>
+                    </div>
+                  </td>
+                  <td class="platform-stat-cell">
+                    <div class="platform-stat-stack">
+                      <span class="platform-stat-value" data-track-id="{{ track.id }}" data-platform="soundcloud">{{ (track.latest_stats().get('soundcloud') or 0)|format_number }}</span>
+                      <form class="js-update-views-form" method="POST" action="{{ url_for('admin.update_track_views', track_id=track.id, platform='soundcloud') }}" style="display:inline-block;">
+                        <button type="submit" class="btn btn-ghost btn-compact js-update-views-btn" data-platform="soundcloud" data-label="↻" title="{% if (track.soundcloud_url or '')|trim %}به‌روزرسانی ساندکلود{% else %}لینک ساندکلود تنظیم نشده{% endif %}" {% if not ((track.soundcloud_url or '')|trim) %}disabled{% endif %} aria-disabled="{% if not ((track.soundcloud_url or '')|trim) %}true{% else %}false{% endif %}"><span class="btn-label">↻</span></button>
+                      </form>
+                    </div>
+                  </td>
+                  <td class="table-actions">
+                    <a href="{{ url_for('admin.track_edit', track_id=track.id, next=request.full_path, next_tab='content') }}" class="btn btn-ghost btn-xs" title="ویرایش آهنگ">✎</a>
+                    <form method="POST" action="{{ url_for('admin.track_delete', track_id=track.id) }}" onsubmit="return confirm('این آهنگ حذف شود؟');" style="display:inline-block; margin-left:6px;">
+                      <input type="hidden" name="next" value="{{ request.full_path }}">
+                      <input type="hidden" name="next_tab" value="content">
+                      <button type="submit" class="btn btn-danger btn-xs" title="حذف آهنگ">🗑</button>
+                    </form>
+
+                    <div class="track-toggle">
+                      <label class="switch" title="{{ 'غیرفعال' if track.is_active else 'فعال' }}">
+                        <input type="checkbox" class="js-track-toggle" data-track-id="{{ track.id }}" data-toggle-url="{{ url_for('admin.track_toggle_active', track_id=track.id) }}" {% if track.is_active %}checked{% endif %}>
+                        <span class="slider"></span>
+                      </label>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="muted" style="padding:14px 0;">هنوز آهنگی برای این آلبوم ثبت نشده.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}?v=20260717"></script>
+{% endblock %}

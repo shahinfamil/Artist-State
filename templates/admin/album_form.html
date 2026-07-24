@@ -1,0 +1,123 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ "ویرایش آلبوم" if album else "آلبوم جدید" }}{% endblock %}
+{% block content %}
+<div class="admin-container">
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h2>{{ "ویرایش آلبوم" if album else "افزودن آلبوم جدید" }}</h2>
+      {% if album %}
+      <a href="{{ url_for('admin.track_new', album_id=album.id, next=request.full_path, next_tab='content') }}" class="btn btn-primary">➕ افزودن ترک جدید</a>
+      {% endif %}
+    </div>
+    <form method="POST" action="{{ url_for('admin.album_edit', album_id=album.id) if album else url_for('admin.album_new') }}" enctype="multipart/form-data" class="admin-form" data-upload-url="{{ url_for('admin.upload_media') }}">
+      <div class="form-grid-2">
+      {% if request.args.get('next') %}
+        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+      {% endif %}
+      {% if request.args.get('next_tab') %}
+        <input type="hidden" name="next_tab" value="{{ request.args.get('next_tab') }}">
+      {% endif %}
+      <label>عنوان آلبوم *
+        <input type="text" name="title" value="{{ album.title if album else '' }}" required>
+      </label>
+      <label>نام آرتیست
+        <input type="text" name="artist_name" value="{{ album.artist_name if album and album.artist_name else '' }}" placeholder="به انگلیسی وارد شود.">
+      </label>
+      </div>
+      <div class="form-grid-2 grid-size-1">
+        <label>تاریخ انتشار
+          <div class="date-selects">
+            <select name="release_day" class="date-select" aria-label="روز">
+              {% set selected_day = album.release_date.day if album and album.release_date else 1 %}
+              {% for day in range(1, 32) %}
+              <option value="{{ day }}" {% if day == selected_day %}selected{% endif %}>{{ day }}</option>
+              {% endfor %}
+            </select>
+            <select name="release_month" class="date-select" aria-label="ماه">
+              {% set selected_month = album.release_date.month if album and album.release_date else 1 %}
+              {% for month in range(1, 13) %}
+              <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+              {% endfor %}
+            </select>
+            <select name="release_year" class="date-select" aria-label="سال">
+              {% set selected_year = album.release_date.year if album and album.release_date else now_year %}
+              {% for year in range(now_year + 1, now_year - 25, -1) %}
+              <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </label>
+        <label>لینک تصویر کاور آلبوم
+          <input type="text" name="cover_url" value="{{ album.cover_url if album else '' }}" placeholder="https://... یا مسیر فایل">
+          <div class="image-url-drop-area image-url-dropzone" data-target-input="cover_url" tabindex="0" aria-label="منطقه درگ و رها کردن تصویر کاور آلبوم">
+            <span class="image-url-dropzone-label">فایل را بکشید و رها کنید یا کلیک کنید</span>
+            <div class="image-url-preview"></div>
+          </div>
+        </label>
+        
+      </div>
+      <div class="grid-size-2">
+        <label>نوع انتشار فعلی(به‌صورت خودکار براساس تعداد ترک‌های فعال تعیین می‌شود)
+          <input type="text" value="{% if album.release_type == 'single' %}تک‌آهنگ{% elif album.release_type == 'ep' %}آلبوم کوتاه{% elif album.release_type == 'album' %}آلبوم{% else %}تعیین نشده{% endif %}" readonly>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary">ذخیره</button>
+    </form>
+    {% if album and album.tracks %}
+    <div class="admin-card" style="margin-top: 24px;">
+      <div class="admin-section-head">
+        <div>
+          <p class="eyebrow">ترک‌های این آلبوم</p>
+          <h2>لیست ترک‌ها</h2>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>عنوان</th>
+              <th>مدت</th>
+              <th>وضعیت</th>
+              <th>ویرایش</th>
+              <th>حذف</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for track in album.tracks|sort(attribute='title') %}
+            <tr>
+              <td>{{ track.title }}</td>
+              <td>{{ track.duration or '—' }}</td>
+              <td>{{ 'فعال' if track.is_active else 'غیرفعال' }}</td>
+              <td>
+                <a href="{{ url_for('admin.track_edit', track_id=track.id, next=request.full_path, next_tab='content') }}" class="btn btn-icon btn-ghost btn-xs" aria-label="ویرایش ترک {{ track.title }}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </a>
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.track_delete', track_id=track.id) }}" class="inline-form">
+                  <input type="hidden" name="next" value="{{ request.full_path }}">
+                  <input type="hidden" name="next_tab" value="content">
+                  <button type="submit" class="btn btn-icon btn-danger btn-xs" aria-label="حذف ترک {{ track.title }}" onclick="return confirm('آیا از حذف این ترک مطمئن هستید؟');">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

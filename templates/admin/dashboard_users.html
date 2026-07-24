@@ -1,0 +1,70 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}مدیریت کاربران{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  {% if not artist %}
+    <div class="admin-card">
+      <h2>برای شروع، اطلاعات آرتیست را وارد کنید</h2>
+      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-primary">افزودن اطلاعات آرتیست</a>
+    </div>
+  {% else %}
+    <div class="admin-dashboard" id="admin-dashboard">
+      <section class="admin-card admin-tab-panel is-active" data-tab-panel="users">
+        <div class="admin-section-head">
+          <div>
+            <p class="eyebrow">مدیریت کاربران</p>
+            <h2>کاربران سایت</h2>
+          </div>
+          <p class="muted">{{ users|length }} کاربر ثبت شده</p>
+        </div>
+
+        {% if users %}
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>نام کاربری</th>
+                <th>ایمیل</th>
+                <th>پریمیوم</th>
+                <th>ادمین</th>
+                <th>تاریخ ثبت</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td>{{ user.username or '—' }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ '✓' if user.is_premium else '—' }}</td>
+                <td>{{ '✓' if user.is_admin else '—' }}</td>
+                <td><p class="date-display">{{ user.created_at|format_date_short }}</p></td>
+                <td class="table-actions">
+                  <form method="POST" action="{{ url_for('admin.user_toggle_premium', user_id=user.id) }}">
+                    <button type="submit" class="btn btn-outline btn-sm">{% if user.is_premium %}برداشت پریمیوم{% else %}پریمیوم کن{% endif %}</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('admin.user_toggle_admin', user_id=user.id) }}">
+                    <button type="submit" class="btn btn-ghost btn-sm">{% if user.is_admin %}حذف ادمین{% else %}ادمین کن{% endif %}</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('admin.user_delete', user_id=user.id) }}" onsubmit="return confirm('آیا این کاربر حذف شود؟');">
+                    <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="muted">هنوز کاربری ثبت‌نام نکرده است.</p>
+        {% endif %}
+      </section>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}?v=20260717"></script>
+{% endblock %}

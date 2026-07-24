@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block content %}
+{% set stats = track.latest_stats() %}
+<section class="track-hero">
+  <div class="container track-hero-inner">
+    <div class="track-hero-media">
+      <img src="{{ track.cover_url }}" class="track-hero-cover" alt="{{ track.title }}">
+      <div class="track-hero-title-row">
+        <h2 class="track-hero-title">{{ track.title }}</h2>
+      </div>
+    </div>
+    <div class="track-hero-copy">
+      {% set release_kind = release_label(track) %}
+      {% set release_kind_label = 'Single' if release_kind == 'Single' else 'EP' if release_kind == 'EP' else 'Album' if release_kind == 'Album' else 'Single' %}
+      <div class="track-meta-list">
+        <a class="track-meta-pill track-meta-pill--link" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) }}">
+          <i class="icon ri-disc-line" aria-hidden="true"></i>
+          <span>{% if track.album %}{{ release_kind_label }} | {{ track.album.title }}{% else %}{{ release_kind_label }}{% endif %}</span>
+        </a>
+        <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('the_shah_tracks') if track.is_the_shah else url_for('shahin_najafi_tracks') }}">
+          <i class="icon ri-user-star-line" aria-hidden="true"></i>
+          <span>{{ track.display_artist_name }}</span>
+        </a>
+        {% if track.featuring %}
+        <div class="track-meta-pill">
+          <i class="icon ri-group-line" aria-hidden="true"></i>
+          <span>{{ track.featuring }}</span>
+        </div>
+        {% endif %}
+
+        {% if track.genre %}
+        {% set genres = track.genre.split(',') %}
+        {% for genre_item in genres %}
+        {% set genre_name = genre_item.strip() %}
+        {% if genre_name %}
+        <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('genre_detail', genre_name=genre_name) }}">
+          <i class="icon ri-price-tag-3-line" aria-hidden="true"></i>
+          <span>{{ genre_name }}</span>
+        </a>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% if track.release_date %}
+        <div class="track-meta-pill">
+          <i class="icon ri-calendar-event-line" aria-hidden="true"></i>
+          <span class="date-display">{{ track.release_date|format_date_short }}</span>
+        </div>
+        {% endif %}
+        {% if track.duration %}
+        <div class="track-meta-pill">
+          <i class="icon ri-time-line" aria-hidden="true"></i>
+          <span>{{ track.duration }}</span>
+        </div>
+        {% endif %}
+      </div>
+      <div class="stat-cards">
+        <a class="stat-card stat-spotify" href="{{ track.spotify_url }}" target="_blank" aria-label="پخش در اسپاتیفای">
+          <span class="stat-value">{{ stats.spotify|format_number }}</span>
+          <i class="icon ri-spotify-fill" aria-hidden="true"></i>
+        </a>
+        <a class="stat-card stat-youtube" href="{{ track.youtube_url }}" target="_blank" aria-label="پخش در یوتیوب">
+          <span class="stat-value">{{ stats.youtube|format_number }}</span>
+          <i class="icon ri-youtube-fill" aria-hidden="true"></i>
+        </a>
+        <a class="stat-card stat-soundcloud" href="{{ track.soundcloud_url }}" target="_blank" aria-label="پخش در ساندکلود">
+          <span class="stat-value">{{ stats.soundcloud|format_number }}</span>
+          <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if track.music_video_url or track.spotify_url or track.soundcloud_url or track.youtube_url or track.youtube_url_secondary %}
+{% set has_music_video = track.music_video_url is not none %}
+{% set youtube_link = track.music_video_url if has_music_video else track.youtube_url or track.youtube_url_secondary %}
+{% set youtube_video_id = youtube_link.split('v=')[-1].split('&')[0] if youtube_link and 'v=' in youtube_link else (youtube_link.split('/')[-1].split('?')[0] if youtube_link and 'youtu.be/' in youtube_link else None) %}
+{% set spotify_id = track.spotify_url.split('/track/')[1].split('?')[0] if track.spotify_url and '/track/' in track.spotify_url else None %}
+{% set soundcloud_embed_url = track.soundcloud_url|urlencode if track.soundcloud_url else None %}
+<section class="section section-video">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">پخش رسانه</p>
+      <h2>ویدیو و ترک را در پلیر سایت پخش کن</h2>
+      <p class="history-subtitle">از تب‌های بالا انتخاب کن: یوتیوب، اسپاتیفای یا ساندکلود. همه پلیرها در همین صفحه پخش می‌شوند.</p>
+    </div>
+    <div class="video-tabs">
+      <div class="video-tabs-nav">
+        <button type="button" class="video-tab-button video-tab-button--youtube active" data-video-tab="youtube">
+          <i class="icon ri-youtube-fill" aria-hidden="true"></i>
+          YouTube
+        </button>
+        <button type="button" class="video-tab-button video-tab-button--spotify" data-video-tab="spotify">
+          <i class="icon ri-spotify-fill" aria-hidden="true"></i>
+          Spotify
+        </button>
+        <button type="button" class="video-tab-button video-tab-button--soundcloud" data-video-tab="soundcloud">
+          <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
+          SoundCloud
+        </button>
+      </div>
+      <div class="video-tabs-content">
+        <div class="video-tab-panel active" id="video-tab-youtube">
+          {% if youtube_link %}
+          <div class="video-player-card video-player-card--highlight">
+            <div class="video-player-header">
+              <div>
+                {% if has_music_video and youtube_video_id %}
+                <p class="eyebrow">پخش ویدیو</p>
+                <h3>موزیک ویدیوی رسمی</h3>
+                {% elif youtube_video_id %}
+                <p class="eyebrow">پخش صدا</p>
+                <h3>کلیپ صوتی یوتیوب</h3>
+                {% else %}
+                <p class="eyebrow">لینک یوتیوب</p>
+                <h3>پخش در یوتیوب</h3>
+                {% endif %}
+              </div>
+              <a class="player-brand-badge player-brand-badge--youtube" href="{{ youtube_link }}" target="_blank" rel="noreferrer noopener">باز کردن در یوتیوب
+                <i class="icon ri-youtube-fill" aria-hidden="true"></i>
+              </a>
+            </div>
+            {% if youtube_video_id %}
+            <div class="youtube-player-wrapper large">
+              <iframe src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0&showinfo=0" title="پخش ویدیو" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+            <div class="video-player-meta">
+              <p class="muted">پخش مستقیم محتوا از YouTube؛ اگر لینک حاوی ویدیو باشد، پلیر درون‌سایت آماده پخش است.</p>
+            </div>
+            {% else %}
+            <div class="video-player-meta">
+              <p class="muted">این لینک به YouTube اشاره دارد؛ برای پخش صدا و ویدیو باید روی دکمه باز کردن در یوتیوب کلیک کنید.</p>
+            </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="video-empty-state">لینک یوتیوب موجود نیست.</div>
+          {% endif %}
+        </div>
+        <div class="video-tab-panel" id="video-tab-spotify">
+          {% if spotify_id %}
+          <div class="video-player-card video-player-card--highlight">
+            <div class="video-player-header">
+              <div>
+                <p class="eyebrow">پخش اسپاتیفای</p>
+                <h3>پخش مستقیم آهنگ</h3>
+              </div>
+              <a class="player-brand-badge player-brand-badge--spotify" href="{{ track.spotify_url }}" target="_blank" rel="noreferrer noopener">باز کردن در اسپاتیفای
+                <i class="icon ri-spotify-fill" aria-hidden="true"></i>
+              </a>
+            </div>
+            <div class="spotify-player-wrapper spotify-player-wrapper--expanded">
+              <iframe data-testid="embed-iframe" class="platform-iframe" title="پخش در اسپاتیفای" src="https://open.spotify.com/embed/track/{{ spotify_id }}" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+            </div>
+          </div>
+          {% else %}
+          <div class="video-empty-state">لینک اسپاتیفای موجود نیست.</div>
+          {% endif %}
+        </div>
+        <div class="video-tab-panel" id="video-tab-soundcloud">
+          {% if soundcloud_embed_url %}
+          <div class="video-player-card video-player-card--highlight">
+            <div class="video-player-header">
+              <div>
+                <p class="eyebrow">پخش ساندکلود</p>
+                <h3>پلیر ساندکلود</h3>
+              </div>
+              <a class="player-brand-badge player-brand-badge--soundcloud" href="{{ track.soundcloud_url }}" target="_blank" rel="noreferrer noopener">باز کردن در ساندکلود
+                <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
+              </a>
+            </div>
+            <div class="soundcloud-player-wrapper">
+              <iframe width="100%" height="100%" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url={{ soundcloud_embed_url }}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&visual=true"></iframe>
+            </div>
+          </div>
+          {% else %}
+          <div class="video-empty-state">لینک ساندکلود موجود نیست.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">روند روزانه</p>
+      <h2>تاریخچه ویوها</h2>
+      <p class="history-subtitle">هر ستون نشان‌دهندهٔ افزایش روزانهٔ ویوهاست و با فیلتر پلتفرم قابل بررسی می‌شود.</p>
+    </div>
+    <div class="history-panel">
+      <div class="history-filters" role="tablist" aria-label="فیلتر پلتفرم">
+        <button class="history-chip active" type="button" data-platform="all">همه</button>
+        <button class="history-chip" type="button" data-platform="spotify"><i class="icon ri-spotify-fill" aria-hidden="true"></i></button>
+        <button class="history-chip" type="button" data-platform="youtube"><i class="icon ri-youtube-fill" aria-hidden="true"></i></button>
+        <button class="history-chip" type="button" data-platform="soundcloud"><i class="icon ri-soundcloud-fill" aria-hidden="true"></i></button>
+      </div>
+      <div class="history-chart-wrap">
+        <div id="historyChart" class="history-chart-svg" aria-label="نمودار تاریخچه ویوها"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+window.TRACK_HISTORY = {{ history_json|safe }};
+
+document.addEventListener('DOMContentLoaded', function () {
+  const tabButtons = document.querySelectorAll('.video-tab-button');
+  const tabPanels = document.querySelectorAll('.video-tab-panel');
+
+  if (!tabButtons.length || !tabPanels.length) {
+    return;
+  }
+
+  tabButtons.forEach((button) => {
+    button.addEventListener('click', function () {
+      const target = this.dataset.videoTab;
+      tabButtons.forEach((btn) => btn.classList.toggle('active', btn === this));
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle('active', panel.id === `video-tab-${target}`);
+      });
+    });
+  });
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.11/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy.css" />
+<script src="{{ url_for('static', filename='js/chart-render.js') }}"></script>
+{% endblock %}

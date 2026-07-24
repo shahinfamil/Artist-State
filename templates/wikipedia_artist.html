@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}ویکی‌پدیا | {{ artist.name }}{% endblock %}
+{% block content %}
+<section class="section wiki-page-section">
+  <div class="container wiki-page-container">
+    <div class="wiki-article-layout">
+      <main class="wiki-article-content">
+        <div class="section-head font-fa">
+        <h2 class="wiki-article-title eyebrow"><i class="icon ri-book-open-line" aria-hidden="true"></i>  ویکی پدیای {{ wiki_data.title or artist.name }}</h2>
+        </div>
+        {% if social_stats %}
+        <section class="wiki-social-grid">
+          <div class="wiki-social-grid-header">
+            <h3>دنبال‌کنندگان در شبکه‌های اجتماعی</h3>
+          </div>
+          {% for stat in social_stats %}
+          {% set icon_map = {
+            'instagram':'ri-instagram-fill',
+            'youtube':'ri-youtube-fill',
+            'facebook':'ri-facebook-fill',
+            'spotify':'ri-spotify-fill',
+            'soundcloud':'ri-soundcloud-fill',
+            'x':'ri-twitter-x-line',
+            'tiktok':'ri-tiktok-fill',
+          } %}
+          {% set icon_class = icon_map.get(stat.key, 'ri-link-m').strip() %}
+          <a href="{{ stat.url }}" class="wiki-social-card pill-{{ stat.key }}" target="_blank" rel="noopener noreferrer">
+            <span class="social-top-row">
+              <span class="social-count">{{ stat.count|format_number if stat.count is not none else '—' }}</span>
+              <span class="social-icon">
+                <span class="sr-only">{{ stat.label }}</span>
+                <i class="icon {{ icon_class }}" aria-hidden="true"></i>
+              </span>
+            </span>
+          </a>
+          {% endfor %}
+         {% if artist.wikipedia_data and artist.wikipedia_data.social_counts_updated_at %}
+        <h3 class="wiki-social-updated">آخرین بروزرسانی  <span class="english-numbers">{{ artist.wikipedia_data.social_counts_updated_at|format_date_short }}</span></h3>
+        {% endif %}
+        </section>
+        {% endif %}
+
+        {% if wiki_data.timeline_section %}
+        <section class="wiki-biography-section" data-collapsible>
+          <div class="wiki-biography-header">
+            <div class="wiki-biography-title">
+              <i class="icon ri-lightbulb-flash-line" aria-hidden="true"></i>
+              <span class="wiki-text">زندگینامه</span>
+            </div>
+            <div class="wiki-biography-header-actions">
+              <span class="wiki-biography-badge">دید کلی</span>
+              <button type="button" class="wiki-biography-collapse-toggle" aria-expanded="false">نمایش بیشتر</button>
+            </div>
+          </div>
+          <div class="wiki-biography-content">{{ wiki_data.timeline_section|safe }}</div>
+        </section>
+        {% endif %}
+
+        {% if discography_tracks %}
+        <section class="wiki-discography-section">
+          <span class="wiki-text">آهنگ های منتشر شده</span>
+          <div class="wiki-discography-table-wrap">
+            <table class="wiki-discography-table">
+              <thead>
+                <tr>
+                  <th>ردیف</th>
+                  <th>عنوان</th>
+                  <th>آلبوم</th>
+                  <th>مدت</th>
+                  <th>همکاری</th>
+                  <th>تاریخ انتشار</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for track in discography_tracks %}
+                  {% set track_date = track.release_date or (track.album.release_date if track.album else None) %}
+                  <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ track.title }}</td>
+                    <td>{{ track.album.title if track.album else '—' }}</td>
+                    <td>{{ track.duration or '—' }}</td>
+                    <td>{{ track.featuring or '—' }}</td>
+                    <td>{{ track_date|format_date_short_jalali if track_date else (track.album.release_year if track.album else 'بدون تاریخ') }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {% endif %}
+      </main>
+
+      <aside class="wiki-article-sidebar">
+        <div class="wiki-infobox">
+          {% if wiki_data.image_url %}
+          <div class="wiki-infobox-image">
+            <img src="{{ wiki_data.image_url }}" alt="تصویر {{ artist.name }} از ویکی‌پدیا">
+          </div>
+          {% endif %}
+
+          <table class="wiki-infobox-table">
+            <tbody>
+              {% for item in wiki_data.infobox %}
+              <tr>
+                <th>{{ item.key }}</th>
+                <td>{{ item.value }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if wiki_data.media %}
+          <div class="wiki-media-sidebar">
+            <h3>رسانه‌ها</h3>
+            <div class="wiki-media-list">
+              {% for item in wiki_data.media %}
+                {% if item.type == 'image' %}
+                <div class="wiki-media-item wiki-media-item--image">
+                  <img src="{{ item.url }}" alt="{{ artist.name }}" loading="lazy">
+                </div>
+                {% elif item.type == 'video' %}
+                <div class="wiki-media-item wiki-media-item--video">
+                  <video controls src="{{ item.url }}"></video>
+                </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var collapsibleSection = document.querySelector('.wiki-biography-section[data-collapsible]');
+    if (!collapsibleSection) return;
+
+    var content = collapsibleSection.querySelector('.wiki-biography-content');
+    var toggleButton = collapsibleSection.querySelector('.wiki-biography-collapse-toggle');
+    if (!content || !toggleButton) return;
+
+    var collapsedHeight = 280;
+    if (content.scrollHeight <= collapsedHeight + 8) {
+      toggleButton.style.display = 'none';
+      return;
+    }
+
+    toggleButton.addEventListener('click', function () {
+      var isExpanded = collapsibleSection.classList.toggle('is-expanded');
+      toggleButton.textContent = isExpanded ? 'بستن' : 'نمایش بیشتر';
+      toggleButton.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    });
+  });
+</script>
+{% endblock %}

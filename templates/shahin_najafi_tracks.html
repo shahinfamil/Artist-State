@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}شاهین نجفی — {{ artist.name }}{% endblock %}
+{% block content %}
+<section class="album-hero">
+  <div class="container">
+    <p class="eyebrow"><a href="{{ url_for('home') }}">{{ artist.name }}</a></p>
+    <h1>شاهین نجفی</h1>
+    <p class="muted">آهنگ‌هایی که با نام شاهین نجفی منتشر شده‌اند</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    {% if tracks %}
+    <div class="track-list track-list--two-up">
+      {% for track in tracks %}
+      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row track-row--compact">
+        <div class="track-cover-wrap">
+          <img class="track-cover" src="{{ track.cover_url }}" alt="">
+        </div>
+        <span class="track-info">
+          <span class="track-title-row">
+            <span class="track-title">{{ track.title }}</span>
+          </span>
+          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
+        </span>
+        <span class="track-rank">{{ tracks|length - loop.index + 1 }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">هنوز هیچ آهنگی با نام شاهین نجفی ثبت نشده است.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

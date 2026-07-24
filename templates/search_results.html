@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}جستجو: {{ query }} — {{ artist.name }}{% endblock %}
+{% block content %}
+
+<section class="album-hero">
+  <div class="container">
+    <p class="eyebrow"><a href="{{ url_for('home') }}">{{ artist.name }}</a></p>
+    <h1>جستجو</h1>
+    <p class="muted">نتایج جستجو برای "{{ query }}"</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="search-box" style="margin-bottom: 2rem;">
+      <form method="get" action="{{ url_for('search') }}" style="display: flex; gap: 0.5rem;">
+        <input 
+          type="text" 
+          name="q" 
+          value="{{ query }}" 
+          placeholder="جستجو برای آهنگ یا آلبوم..."
+          style="flex: 1; padding: 0.75rem 1rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;"
+        >
+        <button 
+          type="submit" 
+          style="padding: 0.75rem 1.5rem; background: #1DB954; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;"
+        >
+          جستجو
+        </button>
+      </form>
+    </div>
+
+    {% if query %}
+      {% if results %}
+      <div class="track-list">
+        <p class="muted" style="margin-bottom: 1.5rem;">{{ results|length }} نتیجه پیدا شد</p>
+        {% for track in results %}
+        {% set stats = track.latest_stats() %}
+        {% set total = track.total_views() %}
+        <a href="{{ url_for('track_detail', track_id=track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+          <span class="track-rank">🔍</span>
+          <div class="track-cover-wrap">
+            <img class="track-cover" src="{{ track.cover_url }}" alt="">
+            {% if track.is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+          </div>
+          <span class="track-info">
+            <span class="track-title-row">
+              <span class="track-title">{{ track.title }}</span>
+            </span>
+            <span class="track-album">{{ track.album.title }} · {{ track.display_artist_name }}{% if track.release_date %} · {{ track.release_date|format_date_short }}{% endif %}{% if track.genre %} · <span class="genre-tag">{{ track.genre }}</span>{% endif %}</span>
+          </span>
+          <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
+            {% set sp = stats.spotify or 0 %}
+            {% set yt = stats.youtube or 0 %}
+            {% set sc = stats.soundcloud or 0 %}
+            {% set t = (sp + yt + sc) or 1 %}
+            <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
+            <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
+            <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
+          </span>
+          <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">متاسفانه هیچ نتیجه‌ای برای "{{ query }}" پیدا نشد.</p>
+      {% endif %}
+    {% else %}
+      <p class="empty-state">برای جستجو لطفا کلمه‌ای را وارد کنید.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

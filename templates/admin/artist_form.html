@@ -1,0 +1,68 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}اطلاعات آرتیست{% endblock %}
+{% block content %}
+<div class="admin-container">
+  <div class="admin-card">
+    <h2>{{ "ویرایش" if artist else "افزودن" }} اطلاعات آرتیست</h2>
+    <form method="POST" enctype="multipart/form-data" class="admin-form" data-upload-url="{{ url_for('admin.upload_media') }}">
+      <label>نام هنرمند *
+        <input type="text" name="name" value="{{ artist.name if artist else '' }}" required>
+      </label>
+      <label>بیوگرافی
+        <textarea name="bio" rows="6">{{ artist.bio if artist else '' }}</textarea>
+      </label>
+      <div class="form-grid-2">
+        <label>لینک تصویر پروفایل (Avatar)
+          <input type="text" name="avatar_url" value="{{ artist.avatar_url if artist else '' }}" placeholder="https://... یا مسیر فایل">
+          <div class="image-url-drop-area image-url-dropzone" data-target-input="avatar_url" tabindex="0" aria-label="منطقه درگ و رها کردن تصویر پروفایل">
+            <span class="image-url-dropzone-label">فایل را بکشید و رها کنید یا کلیک کنید</span>
+            <div class="image-url-preview"></div>
+          </div>
+        </label>
+        <label>لینک تصویر کاور (Cover)
+          <input type="text" name="cover_url" value="{{ artist.cover_url if artist else '' }}" placeholder="https://... یا مسیر فایل">
+          <div class="image-url-drop-area image-url-dropzone" data-target-input="cover_url" tabindex="0" aria-label="منطقه درگ و رها کردن تصویر کاور">
+            <span class="image-url-dropzone-label">فایل را بکشید و رها کنید یا کلیک کنید</span>
+            <div class="image-url-preview"></div>
+          </div>
+        </label>
+      </div>
+      <div class="form-grid-2">
+        <label>لینک صفحه اسپاتیفای
+          <input type="url" name="spotify_artist_url" value="{{ artist.spotify_artist_url if artist else '' }}">
+        </label>
+        <label>لینک کانال یوتیوب
+          <input type="url" name="youtube_channel_url" value="{{ artist.youtube_channel_url if artist else '' }}">
+        </label>
+      </div>
+      <div class="form-grid-2">
+        <label>لینک ساندکلود
+          <input type="url" name="soundcloud_url" value="{{ artist.soundcloud_url if artist else '' }}">
+        </label>
+        <label>لینک اینستاگرام
+          <input type="url" name="instagram" value="{{ artist.instagram if artist else '' }}">
+        </label>
+      </div>
+      <div class="form-grid-2">
+        <label>لینک فیسبوک
+          <input type="url" name="facebook" value="{{ artist.facebook if artist else '' }}">
+        </label>
+        <label>لینک توییتر / ایکس
+          <input type="url" name="x" value="{{ artist.x if artist else '' }}">
+        </label>
+      </div>
+      <div class="form-grid-2">
+        <label>لینک تیک‌تاک
+          <input type="url" name="tiktok" value="{{ artist.tiktok if artist else '' }}">
+        </label>
+        <label>لینک تلگرام
+          <input type="url" name="telegram" value="{{ artist.telegram if artist else '' }}">
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" name="action" value="save" class="btn btn-primary">ذخیره</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,225 @@
+<!DOCTYPE html>    
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="format-detection" content="telephone=no">
+<title>{% block title %}{{ artist.name if artist else "آرتیست" }}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Estedad:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260630">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css">
+</head>
+<body>
+<div class="noise-overlay"></div>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a href="{{ url_for('home') }}" class="logo">
+        <span class="logo-dot"></span>
+        {{ artist.name if artist else "آرتیست" }}
+      </a>
+      <a href="{{ url_for('admin.dashboard') }}" class="mobile-admin-link" aria-label="ورود به پنل ادمین">
+        <i class="icon ri-shield-user-line" aria-hidden="true"></i>
+      </a>
+    </div>
+    <nav class="main-nav">
+      <a href="{{ url_for('home') }}" aria-label="صفحه اصلی">
+        <span class="nav-label">صفحه اصلی</span>
+        <i class="icon ri-home-4-line" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('top_tracks_list') if request.endpoint != 'home' else '#top' }}" aria-label="آمار پرطرفدارترین‌ها">
+        <span class="nav-label">آمار پرطرفدارترین‌ها</span>
+        <i class="icon ri-bar-chart-2-line" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('albums_list') if request.endpoint != 'home' else '#albums' }}" aria-label="دیسکوگرافی">
+        <span class="nav-label">دیسکوگرافی</span>
+        <i class="icon ri-disc-line" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('genres_list') if request.endpoint != 'home' else '#styles' }}" aria-label="سبک‌ها">
+        <span class="nav-label">سبک‌ها</span>
+        <i class="icon ri-music-2-line" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('release_calendar_page') if request.endpoint != 'home' else '#calendar' }}" aria-label="تقویم انتشار">
+        <span class="nav-label">تقویم انتشار</span>
+        <i class="icon ri-calendar-event-line" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('wikipedia_artist') }}" aria-label="اطلاعات ویکی‌پدیا">
+        <span class="nav-label">ویکی‌پدیا</span>
+        <i class="icon ri-book-open-line" aria-hidden="true"></i>
+      </a>
+    </nav>
+
+    <div class="header-actions">
+      <form class="header-search" role="search" method="get" action="{{ url_for('search') }}">
+        <i class="search-icon ri-search-line" aria-hidden="true"></i>
+        <input type="text" id="search-input" name="q" placeholder="جستجو" autocomplete="off">
+        <div id="search-results"></div>
+      </form>
+
+      {% if current_user %}
+        <a class="header-user-pill" href="{{ url_for('account') }}">
+          <i class="icon ri-user-line" aria-hidden="true"></i>
+          <span class="pill-label">حساب من</span>
+        </a>
+        <a class="header-user-pill" href="{{ url_for('logout') }}">
+          <i class="icon ri-logout-box-r-line" aria-hidden="true"></i>
+          <span class="pill-label">خروج</span>
+        </a>
+      {% else %}
+        <a class="header-user-pill" href="{{ url_for('login') }}">
+          <i class="icon ri-login-box-line" aria-hidden="true"></i>
+          <span class="pill-label">ورود / ثبت نام</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<button id="scroll-to-top" type="button" aria-label="بازگشت به بالا" title="بازگشت به بالا">
+  <i class="icon ri-arrow-up-line" aria-hidden="true"></i>
+</button>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p>© {{ now_year }} {{ artist.name if artist else "" }} — تمامی حقوق محفوظ است، بازتولید مطالب با ذکر منبع بلامانع است.</p>
+    {% if artist %}
+    <div class="pill footer-links">
+      {% if artist.spotify_artist_url %}
+      <a class="icon-spotify-hover" href="{{ artist.spotify_artist_url }}" target="_blank" rel="noopener" aria-label="اسپاتیفای">
+          <i class="icon ri-spotify-line" aria-hidden="true"></i>
+          <span class="sr-only">اسپاتیفای</span>
+        </a>{% endif %}
+      {% if artist.youtube_channel_url %}
+      <a class="icon-youtube-hover" href="{{ artist.youtube_channel_url }}" target="_blank" rel="noopener" aria-label="یوتیوب">
+          <i class="icon ri-youtube-line" aria-hidden="true"></i>
+          <span class="sr-only">یوتیوب</span>
+        </a>{% endif %}
+      {% if artist.soundcloud_url %}
+      <a class="icon-soundcloud-hover" href="{{ artist.soundcloud_url }}" target="_blank" rel="noopener" aria-label="ساندکلود">
+          <i class="icon ri-soundcloud-line" aria-hidden="true"></i>
+          <span class="sr-only">ساندکلود</span>
+        </a>{% endif %}
+      {% if artist.instagram %}
+      <a class="icon-instagram-hover" href="{{ artist.instagram }}" target="_blank" rel="noopener" aria-label="اینستاگرام">
+          <i class="icon ri-instagram-line" aria-hidden="true"></i>
+          <span class="sr-only">اینستاگرام</span>
+        </a>
+      {% endif %}
+      {% if artist.facebook %}
+      <a class="icon-facebook-hover" href="{{ artist.facebook }}" target="_blank" rel="noopener" aria-label="فیسبوک">
+          <i class="icon ri-facebook-line" aria-hidden="true"></i>
+          <span class="sr-only">فیسبوک</span>
+        </a>
+      {% endif %}
+      {% if artist.x %}
+        <a class="icon-x-hover" href="{{ artist.x }}" target="_blank" rel="noopener" aria-label="توییتر - ایکس">
+          <i class="icon ri-twitter-x-line" aria-hidden="true"></i>
+          <span class="sr-only">توییتر - ایکس</span>
+        </a>
+      {% endif %}
+      {% if artist.tiktok %}
+        <a class="icon-tiktok-hover" href="{{ artist.tiktok }}" target="_blank" rel="noopener" aria-label="تیک‌تاک">
+          <i class="icon ri-tiktok-fill" aria-hidden="true"></i>
+          <span class="sr-only">تیک‌تاک</span>
+        </a>
+      {% endif %}
+      {% if artist.telegram %}
+        <a class="icon-telegram-hover" href="{{ artist.telegram }}" target="_blank" rel="noopener" aria-label="تلگرام">
+          <i class="icon ri-telegram-2-line" aria-hidden="true"></i>
+          <span class="sr-only">تلگرام</span>
+        </a>
+      {% endif %}
+  {% endif %}
+    </div>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auto-font.js') }}"></script>
+
+<script>
+// Live Search
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+const searchForm = document.querySelector('.header-search');
+let searchTimeout;
+
+function setSearchLoading(isLoading) {
+  searchForm?.classList.toggle('is-searching', isLoading);
+}
+
+if (searchInput && searchResults) {
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const query = this.value.trim();
+
+    if (query.length < 2) {
+      setSearchLoading(false);
+      searchResults.style.display = 'none';
+      return;
+    }
+
+    setSearchLoading(true);
+    searchResults.innerHTML = '<div style="padding: 0.85rem 1rem; color: #aaa; text-align: center;">در حال جستجو…</div>';
+    searchResults.style.display = 'block';
+    searchTimeout = setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+          setSearchLoading(false);
+          if (data.length === 0) {
+            searchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: #aaa;">نتیجه‌ای پیدا نشد</div>';
+            searchResults.style.display = 'block';
+            return;
+          }
+
+          const html = data.map(track => `
+            <a href="${track.url}" style="display: flex; align-items: center; padding: 0.75rem 1rem; color: white; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;">
+              <img src="${track.cover_url}" alt="" style="width: 40px; height: 40px; border-radius: 4px; margin-left: 0.75rem; object-fit: cover;">
+              <div style="flex: 1;">
+                <div style="font-size: 0.9rem; font-weight: 500;">${track.title}</div>
+                <div style="font-size: 0.8rem; color: #aaa;">${track.album}</div>
+              </div>
+            </a>
+          `).join('');
+
+          searchResults.innerHTML = html;
+          searchResults.style.display = 'block';
+        })
+        .catch(error => {
+          setSearchLoading(false);
+          console.error('Search error:', error);
+        });
+    }, 300);
+  });
+
+  document.addEventListener('click', function(event) {
+    if (!event.target.closest('.header-search')) {
+      searchResults.style.display = 'none';
+    }
+  });
+
+  searchInput.addEventListener('focus', function() {
+    this.setAttribute('placeholder', 'نام آهنگ را به فینگلیش سرچ کنید');
+    if (this.value.trim().length >= 2) {
+      searchResults.style.display = 'block';
+    }
+  });
+
+  searchInput.addEventListener('blur', function() {
+    if (!this.value.trim()) {
+      this.setAttribute('placeholder', 'جستجو');
+    }
+  });
+}
+</script>
+
+</body>
+</html>

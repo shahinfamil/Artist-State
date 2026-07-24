@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}پنل مدیریت{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Vazirmatn:wght@300;400;500;600;700;800&family=Estedad:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260626">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}?v=20260716">
+</head>
+<body class="admin-body">
+
+{% if session.get('admin_logged_in') %}
+<header class="admin-header">
+  <div class="admin-header-inner">
+    <a href="{{ url_for('admin.dashboard') }}" class="logo">
+      <span class="logo-dot"></span> پنل مدیریت
+    </a>
+    <nav class="admin-nav">
+      <a href="{{ url_for('home') }}" target="_blank">مشاهده سایت ↗</a>
+      <a href="{{ url_for('admin.logout') }}">خروج</a>
+    </nav>
+  </div>
+</header>
+{% endif %}
+
+<main class="admin-main">
+  <div class="admin-shell">
+    {% if session.get('admin_logged_in') %}
+    <aside class="admin-sidebar" aria-label="منوی مدیریت">
+      <div class="admin-sidebar__brand">
+        <div class="admin-sidebar__logo">
+          <span class="logo-dot"></span>
+          <span>پنل مدیریت</span>
+        </div>
+        <p class="admin-sidebar__subtitle">کنترل و ویرایش محتوای سایت</p>
+      </div>
+
+{% block sidebar_nav %}
+<nav class="admin-sidebar__nav admin-sidebar__nav--tabs" aria-label="تب‌های مدیریت">
+  <button class="admin-sidebar__tab is-active" type="button" data-tab-target="overview" data-page-url="{{ url_for('admin.dashboard') }}" role="tab" aria-selected="true">نمای کلی</button>
+  <button class="admin-sidebar__tab" type="button" data-tab-target="artist" data-page-url="{{ url_for('admin.artist_form') }}" role="tab" aria-selected="false">ویرایش اطلاعات آرتیست</button>
+  <button class="admin-sidebar__tab" type="button" data-tab-target="wikipedia-info" data-page-url="{{ url_for('admin.wikipedia_info_page') }}" role="tab" aria-selected="false">اطلاعات ویکی‌پدیا</button>
+  <button class="admin-sidebar__tab" type="button" data-tab-target="content" data-page-url="{{ url_for('admin.dashboard_content') }}" role="tab" aria-selected="false">آلبوم‌ها و آهنگ‌ها</button>
+  <button class="admin-sidebar__tab" type="button" data-tab-target="analytics" data-page-url="{{ url_for('admin.dashboard_analytics') }}" role="tab" aria-selected="false">آنالیز بازدیدها</button>
+  <button class="admin-sidebar__tab" type="button" data-tab-target="users" data-page-url="{{ url_for('admin.dashboard_users') }}" role="tab" aria-selected="false">کاربران</button>
+</nav>
+{% endblock %}
+    </aside>
+    {% endif %}
+
+    <div class="admin-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="admin-flash-wrap">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='js/auto-font.js') }}" data-base-admin-script="true"></script>
+<script src="{{ url_for('static', filename='js/admin-base.js') }}" data-base-admin-script="true" data-dashboard-url="{{ url_for('admin.dashboard') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-image-upload.js') }}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,65 @@
+<div class="analytics-panel__hero">
+  <div>
+    <h2 class="eyebrow">آنالیز بازدیدها</h2>
+    <p>نمایی مرتب برای بررسی بازدیدها</p>
+  </div>
+</div>
+
+<form id="analyticsFiltersForm" method="get" class="analytics-filters" action="{{ url_for('admin.dashboard_analytics') }}">
+  <div class="analytics-filter-card">
+    <label class="analytics-filter__label" for="platformFilter">پلتفرم</label>
+    <select id="platformFilter" name="platform">
+      <option value="">همه پلتفرم‌ها</option>
+      <option value="spotify" {% if analytics_platform == 'spotify' %}selected{% endif %}>اسپاتیفای</option>
+      <option value="youtube" {% if analytics_platform == 'youtube' %}selected{% endif %}>یوتیوب</option>
+      <option value="soundcloud" {% if analytics_platform == 'soundcloud' %}selected{% endif %}>ساندکلود</option>
+    </select>
+  </div>
+
+  <div class="analytics-filter-card analytics-filter-card--search">
+    <label class="analytics-filter__label" for="trackAnalyticsInput">جست‌وجوی آهنگ</label>
+    <div class="analytics-track-input-wrap">
+      <input type="text" id="trackAnalyticsInput" autocomplete="off" placeholder="نام آهنگ را تایپ کنید" value="{{ selected_track_title or '' }}">
+      <input type="hidden" id="trackFilter" name="track_id" value="{{ analytics_track_id or '' }}">
+      <div id="trackAnalyticsSuggestions" class="analytics-track-suggestions" role="listbox">
+        {% for track in tracks %}
+        <button type="button" class="analytics-track-suggestion{% if analytics_track_id == track.id|string %} is-selected{% endif %}" data-track-id="{{ track.id }}" data-track-title="{{ track.title }}">{{ track.title }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="analytics-filter-card">
+    <label class="analytics-filter__label" for="dateFrom">از تاریخ</label>
+    <input type="date" id="dateFrom" name="date_from" value="{{ analytics_date_from }}" min="{{ analytics_date_min }}" max="{{ analytics_date_max }}" class="analytics-date-input">
+  </div>
+
+  <div class="analytics-filter-card">
+    <label class="analytics-filter__label" for="dateTo">تا تاریخ</label>
+    <input type="date" id="dateTo" name="date_to" value="{{ analytics_date_to }}" min="{{ analytics_date_min }}" max="{{ analytics_date_max }}" class="analytics-date-input">
+  </div>
+
+  <div class="analytics-filter-actions">
+    <button type="submit" class="btn btn-primary">اعمال فیلتر</button>
+    <button type="button" class="btn btn-ghost" data-analytics-action="clear">پاک‌کردن</button>
+  </div>
+</form>
+
+<div class="analytics-metrics" aria-label="خلاصه آنالیز بازدیدها">
+  <div class="analytics-metric-card analytics-metric-card--primary">
+    <span class="analytics-metric-card__value">{{ "{:,}".format(analytics_summary.total_views) }}</span>
+    <span class="analytics-metric-card__label">جمع کل بازدیدها</span>
+  </div>
+  <div class="analytics-metric-card">
+    <span class="analytics-metric-card__value">{{ "{:,}".format(analytics_summary.platform_totals.get('youtube', 0)) }}</span>
+    <span class="analytics-metric-card__label">یوتیوب</span>
+  </div>
+  <div class="analytics-metric-card">
+    <span class="analytics-metric-card__value">{{ "{:,}".format(analytics_summary.platform_totals.get('spotify', 0)) }}</span>
+    <span class="analytics-metric-card__label">اسپاتیفای</span>
+  </div>
+  <div class="analytics-metric-card">
+    <span class="analytics-metric-card__value">{{ "{:,}".format(analytics_summary.platform_totals.get('soundcloud', 0)) }}</span>
+    <span class="analytics-metric-card__label">ساندکلود</span>
+  </div>
+</div>

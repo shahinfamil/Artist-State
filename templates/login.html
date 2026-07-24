@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+  <div class="container auth-container">
+    <div class="auth-card is-login" id="auth-card" data-auto-font="true">
+      <h1 class="auth-page-title">ورود / ثبت نام</h1>
+      <p class="auth-page-subtitle">برای ادامه وارد حساب کاربری خود شوید یا یک حساب جدید بسازید.</p>
+      <div class="auth-form-summary{% if error %} is-visible{% endif %}" id="auth-form-summary" aria-live="polite">
+        {% if error %}
+        <span class="auth-form-summary__content auth-form-summary__content--error" role="alert">
+          <span class="auth-form-summary__icon">⚠</span>
+          {% if show_recovery_hint %}
+            <span class="auth-form-summary__text">رمز عبور اشتباه است. اگر رمز را فراموش کرده‌اید، با ایمیل ثبت شده می‌توانید آن را بازیابی کنید.</span>
+            <button type="button" class="auth-recovery-trigger" data-toggle-recovery-form aria-controls="auth-recovery-form" aria-expanded="false">بازیابی رمز عبور</button>
+          {% else %}
+            {{ error }}
+          {% endif %}
+        </span>
+        {% endif %}
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-action="login">ورود</button>
+        <button type="button" class="auth-tab" data-action="register">ثبت نام</button>
+      </div>
+
+      <div class="auth-form-panel is-visible" id="login-form-panel">
+        <form method="post" id="auth-login-form" class="auth-form is-login" novalidate>
+          <input type="hidden" name="action" value="login">
+
+          <label for="login-username">نام کاربری</label>
+          <div class="auth-input-wrap">
+            <input id="login-username" type="text" name="username" autocomplete="username" placeholder="نام کاربری خود را وارد کنید" class="auth-field auth-field--with-icon" required>
+            <span class="auth-input-icon">👤</span>
+          </div>
+
+          <label for="login-password">رمز عبور</label>
+            <a type="button" class="popup-recovery" data-toggle-recovery-form aria-controls="auth-recovery-form" aria-expanded="false">(بازیابی رمز عبور)</a>
+          <div class="auth-password-wrap">
+            <div class="auth-input-wrap">
+              <input id="login-password" type="password" name="password" required autocomplete="current-password" placeholder="رمز عبور خود را وارد کنید" class="auth-field auth-field-password auth-field--with-icon">
+              <span class="auth-input-icon">🔒</span>
+            </div>
+            <button type="button" class="password-toggle auth-password-toggle" data-target="login-password" aria-label="نمایش رمز عبور" title="نمایش/مخفی کردن رمز عبور">👁</button>
+          </div>
+
+          <button type="submit" class="pill auth-submit-button">ورود</button>
+        </form>
+      </div>
+        <div class="auth-recovery-popup{% if not show_recovery_popup %} auth-recovery-popup--hidden{% endif %}" id="auth-recovery-popup" aria-hidden="{{ 'false' if show_recovery_popup else 'true' }}" tabindex="-1">
+          <div class="auth-recovery-popup__backdrop" data-close-recovery-popup onclick="toggleRecoveryPopup(false); return false;"></div>
+          <div class="auth-recovery-popup__dialog" role="dialog" aria-modal="true" aria-labelledby="auth-recovery-title">
+            <button type="button" class="auth-recovery-popup__close" data-close-recovery-popup aria-label="بستن" onclick="toggleRecoveryPopup(false); return false;">✕</button>
+            <h3 id="auth-recovery-title">بازیابی رمز عبور</h3>
+            <div class="auth-recovery-status{% if recovery_error or recovery_message %} is-visible{% endif %}" id="auth-recovery-status" aria-live="polite">
+              {% if recovery_error %}
+              <div class="auth-recovery-status__content auth-recovery-status__content--error" role="alert">
+                <span class="auth-recovery-status__icon">⚠</span>
+                <span class="auth-recovery-status__text">{{ recovery_error }}</span>
+              </div>
+              {% endif %}
+              {% if recovery_message %}
+              <div class="auth-recovery-status__content auth-recovery-status__content--success" role="status">
+                <span class="auth-recovery-status__icon">✓</span>
+                <span class="auth-recovery-status__text">{{ recovery_message }}</span>
+              </div>
+              {% endif %}
+            </div>
+            <form method="post" action="{{ url_for('forgot_password') }}" class="auth-recovery-form" id="auth-recovery-form" novalidate>
+              <label for="forgot-email">ایمیل حساب خود را وارد کنید</label>
+              <div class="auth-input-wrap">
+                <input id="forgot-email" type="email" name="email" autocomplete="email" placeholder="ایمیل حساب خود را وارد کنید" class="auth-field auth-field--with-icon" required>
+                <span class="auth-input-icon">✉</span>
+              </div>
+              <button type="submit" class="pill auth-submit-button auth-submit-button--secondary">بازیابی رمز عبور</button>
+            </form>
+          </div>
+        </div>
+      <div class="auth-form-panel" id="register-form-panel">
+        <form method="post" id="auth-register-form" class="auth-form is-register" novalidate>
+          <input type="hidden" name="action" value="register">
+
+          <label for="register-username">نام کاربری</label>
+          <div class="auth-input-wrap">
+            <input id="register-username" type="text" name="username" autocomplete="username" placeholder="نام کاربری خود را وارد کنید" class="auth-field auth-field--with-icon" required>
+            <span class="auth-input-icon">👤</span>
+          </div>
+          <label for="register-email">ایمیل</label>
+          <div class="auth-input-wrap">
+            <input id="register-email" type="email" name="email" autocomplete="email" placeholder="ایمیل خود را وارد کنید" class="auth-field auth-field--with-icon" required>
+            <span class="auth-input-icon">✉</span>
+          </div>
+          <label for="register-password">رمز عبور</label>
+          <div class="auth-password-wrap">
+            <div class="auth-input-wrap">
+              <input id="register-password" type="password" name="password" required autocomplete="new-password" placeholder="رمز عبور خود را وارد کنید" class="auth-field auth-field-password auth-field--with-icon">
+              <span class="auth-input-icon">🔒</span>
+            </div>
+            <div class="auth-strength-meter" id="register-password-strength-meter">
+              <span class="auth-strength-segment" data-segment="1"></span>
+              <span class="auth-strength-segment" data-segment="2"></span>
+              <span class="auth-strength-segment" data-segment="3"></span>
+              <span class="auth-strength-segment" data-segment="4"></span>
+            </div>
+            <div class="auth-strength-text" id="register-password-strength-text" aria-live="polite"></div>
+            <button type="button" class="password-toggle auth-password-toggle" data-target="register-password" aria-label="نمایش رمز عبور" title="نمایش/مخفی کردن رمز عبور">👁</button>
+          </div>
+
+          <label for="register-confirm-password">تکرار رمز عبور</label>
+          <div class="auth-password-wrap auth-password-wrap--register">
+            <div class="auth-input-wrap">
+              <input id="register-confirm-password" type="password" name="confirm_password" autocomplete="new-password" placeholder="تکرار رمز عبور" class="auth-field auth-field-password auth-field--with-icon">
+              <span class="auth-input-icon">🔒</span>
+            </div>
+            <button type="button" class="password-toggle auth-password-toggle" data-target="register-confirm-password" aria-label="نمایش تکرار رمز عبور" title="نمایش/مخفی کردن رمز عبور">👁</button>
+          </div>
+
+          <button type="submit" class="pill auth-submit-button">ثبت نام</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/auth-form.js') }}"></script>
+{% endblock %}

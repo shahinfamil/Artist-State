@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}تقویم انتشار - {{ artist.name if artist else "آرتیست" }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="eyebrow">
+        <i class="icon ri-calendar-event-fill" aria-hidden="true"></i>
+        تقویم انتشار
+      </h2>
+    </div>
+    <div class="release-calendar__current-time" id="todayClockBox">
+      <div class="release-calendar__current-time-content">
+        <div class="release-calendar__current-time-value" id="todayClockValue">
+          <div class="release-calendar__current-time-row" id="todayClockDate">
+            <div class="release-calendar__current-time-group">
+              <span class="release-calendar__current-time-label-compact">روز</span>
+              <span class="release-calendar__current-time-part" id="todayClockDateDay">{{ current_datetime.strftime('%d') }}</span>
+            </div>
+            <div class="release-calendar__current-time-group">
+              <span class="release-calendar__current-time-label-compact">ماه</span>
+              <span class="release-calendar__current-time-part" id="todayClockDateMonth">{{ current_datetime.strftime('%m') }}</span>
+            </div>
+            <div class="release-calendar__current-time-group">
+              <span class="release-calendar__current-time-label-compact">سال</span>
+              <span class="release-calendar__current-time-part" id="todayClockDateYear">{{ current_datetime.strftime('%y') }}</span>
+            </div>
+          </div>
+          <div class="release-calendar__current-time-row" id="todayClockTime">
+            <div class="release-calendar__current-time-group">
+              <span class="release-calendar__current-time-label-compact">ثانیه</span>
+              <span class="release-calendar__current-time-part" id="todayClockSecond">{{ current_datetime.strftime('%S') }}</span>
+            </div>
+            <div class="release-calendar__current-time-group">
+              <span class="release-calendar__current-time-label-compact">دقیقه</span>
+              <span class="release-calendar__current-time-part" id="todayClockMinute">{{ current_datetime.strftime('%M') }}</span>
+            </div>
+            <div class="release-calendar__current-time-group">
+              <span class="release-calendar__current-time-label-compact">ساعت</span>
+              <span class="release-calendar__current-time-part" id="todayClockHour">{{ current_datetime.strftime('%H') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% if today_releases %}
+    <div class="release-calendar__today-releases">
+      <div class="release-calendar__today-releases-label">انتشارهای امروز</div>
+      <div class="release-calendar__today-releases-slider">
+        {% for track in today_releases %}
+        <a class="release-calendar__today-release-card" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">
+          <div class="release-calendar__today-release-card-title-row">
+            <div class="release-calendar__today-release-card-title">{{ track.title }}</div>
+          </div>
+          <div class="release-calendar__today-release-card-meta">
+            {{ track.release_date.year if track.release_date else (track.album.release_date.year if track.album and track.album.release_date else '') }} • {% if track.album and track.album.title %}آلبوم{% else %}تک‌آهنگ{% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if release_calendar %}
+    <div class="release-calendar-grid">
+      {% for month_group in release_calendar %}
+      <article class="release-calendar__month release-calendar__month--grid">
+        <div class="release-calendar__month-header">
+          <span class="release-calendar__month-name">{{ month_group.month_name }}</span>
+        </div>
+        <div class="release-calendar__weekdays">
+          {% for weekday in month_group.weekday_names %}
+          <span class="release-calendar__weekday">{{ weekday }}</span>
+          {% endfor %}
+        </div>
+        <div class="release-calendar__grid">
+          {% for day in month_group.calendar_days %}
+          <div class="release-calendar__cell {% if day.is_blank %}release-calendar__cell--blank{% else %}release-calendar__cell--filled{% endif %} {% if day.is_today %}release-calendar__cell--today{% endif %} {% if day.has_release %}release-calendar__cell--has-release{% endif %}" tabindex="0">
+            {% if not day.is_blank %}
+            <span class="release-calendar__cell-day">{{ '%02d' % day.day }}</span>
+            {% if day.has_release %}
+            <span class="release-calendar__cell-dot" aria-hidden="true"></span>
+            <div class="release-calendar__cell-tooltip">
+              <div class="release-calendar__tooltip-header">انتشارهای این روز</div>
+              <div class="release-calendar__tooltip-list">
+                {% for entry in day.entries %}
+                  {% if entry.kind == 'album' %}
+                  {% set album = entry.tracks[0].album if entry.tracks and entry.tracks[0].album else none %}
+                  <a class="release-calendar__tooltip-item release-calendar__tooltip-item--album" href="{{ url_for('album_detail', album_id=album.id, slug=slugify_text(album.title)) }}">
+                    <div class="release-calendar__tooltip-artwork">
+                      {% if album and album.cover_url %}
+                      <img src="{{ album.cover_url }}" alt="{{ entry.display_title }}" />
+                      {% else %}
+                      <div class="release-calendar__tooltip-placeholder">♫</div>
+                      {% endif %}
+                    </div>
+                    <div class="release-calendar__tooltip-body">
+                      <span class="release-calendar__tooltip-title">{{ entry.display_title }}</span>
+                      <span class="release-calendar__tooltip-meta">{{ entry.release_year if entry.release_year else '' }} • Album</span>
+                    </div>
+                  </a>
+                  {% else %}
+                  {% for track in entry.tracks %}
+                  <a class="release-calendar__tooltip-item" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">
+                    <div class="release-calendar__tooltip-artwork">
+                      {% if track.cover_url or (track.album.cover_url if track.album else '') %}
+                      <img src="{{ track.cover_url or (track.album.cover_url if track.album else '') }}" alt="{{ track.title }}" />
+                      {% else %}
+                      <div class="release-calendar__tooltip-placeholder">♫</div>
+                      {% endif %}
+                    </div>
+                    <div class="release-calendar__tooltip-body">
+                      <span class="release-calendar__tooltip-title-row">
+                        <span class="release-calendar__tooltip-title">{{ track.title }}</span>
+                        {% if track.is_the_shah %}
+                        <span class="track-badge"><i class="icon ri-vip-crown-fill" aria-hidden="true"></i></span>
+                        {% endif %}
+                      </span>
+                      <span class="release-calendar__tooltip-meta">{{ track.release_date.year if track.release_date else '' }} • {{ release_label(track) }}</span>
+                    </div>
+                  </a>
+                  {% endfor %}
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">هنوز تاریخ انتشار برای هیچ ترانه‌ای ثبت نشده است. اگر آلبوم‌ها/ترانه‌ها دارید، تاریخ انتشار را در پنل ادمین وارد کنید تا در اینجا نمایش داده شوند.</p>
+    {% endif %}
+</section>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const clockValue = document.getElementById('todayClockValue');
+    if (!clockValue) return;
+
+    const pad = (num) => num.toString().padStart(2, '0');
+    const updateClock = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const shortYear = pad(year % 100);
+      const month = pad(now.getMonth() + 1);
+      const day = pad(now.getDate());
+      const hours = pad(now.getHours());
+      const minutes = pad(now.getMinutes());
+      const seconds = pad(now.getSeconds());
+      const yearElement = document.getElementById('todayClockDateYear');
+      const monthElement = document.getElementById('todayClockDateMonth');
+      const dayElement = document.getElementById('todayClockDateDay');
+      const hourElement = document.getElementById('todayClockHour');
+      const minuteElement = document.getElementById('todayClockMinute');
+      const secondElement = document.getElementById('todayClockSecond');
+      if (yearElement) yearElement.textContent = shortYear;
+      if (monthElement) monthElement.textContent = month;
+      if (dayElement) dayElement.textContent = day;
+      if (hourElement) hourElement.textContent = hours;
+      if (minuteElement) minuteElement.textContent = minutes;
+      if (secondElement) secondElement.textContent = seconds;
+    };
+
+    updateClock();
+    setInterval(updateClock, 1000);
+  });
+</script>
+{% endblock %}

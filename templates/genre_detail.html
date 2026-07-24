@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}ژانر {{ genre_name }} — {{ artist.name }}{% endblock %}
+{% block content %}
+<section class="album-hero">
+  <div class="container">
+    <p class="eyebrow"><a href="{{ url_for('genres_list') }}">ژانرها</a></p>
+    <h1>{{ genre_name }}</h1>
+    <p class="muted">{{ tracks|length }} ترک در این ژانر</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="track-list">
+      {% for track in tracks %}
+      {% set stats = track.latest_stats() %}
+      {% set total = track.total_views() %}
+      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+        <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+        <div class="track-cover-wrap">
+          <img class="track-cover" src="{{ track.cover_url }}" alt="">
+          {% if track.is_the_shah %}
+          <span class="cover-badge" aria-label="The Shah">
+            <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+          </span>
+          {% endif %}
+        </div>
+        <span class="track-info">
+          <span class="track-title-row">
+            <span class="track-title">{{ track.title }}</span>
+          </span>
+          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
+        </span>
+        <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
+          {% set sp = stats.spotify or 0 %}
+          {% set yt = stats.youtube or 0 %}
+          {% set sc = stats.soundcloud or 0 %}
+          {% set t = (sp + yt + sc) or 1 %}
+          <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
+          <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
+          <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
+        </span>
+        <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
+      </a>
+      {% else %}
+      <p class="empty-state">ترکی در این ژانر پیدا نشد.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}آلبوم‌ها — {{ artist.name }}{% endblock %}
+{% block content %}
+
+<section class="album-hero">
+  <div class="container">
+    <p class="eyebrow"><a href="{{ url_for('home') }}">{{ artist.name }}</a></p>
+    <h1>آهنگ های منتشر شده</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <!-- Tab Navigation -->
+    <div class="discography-tabs">
+      <button class="tab-btn active" data-tab="singles">
+        <span class="tab-label">تک آهنگ‌ها</span>
+        <span class="tab-count">{{ singles|length }}</span>
+      </button>
+      <button class="tab-btn" data-tab="eps">
+        <span class="tab-label">آلبوم کوتاه</span>
+        <span class="tab-count">{{ eps|length }}</span>
+      </button>
+      <button class="tab-btn" data-tab="albums">
+        <span class="tab-label">آلبوم‌ها</span>
+        <span class="tab-count">{{ full_albums|length }}</span>
+      </button>
+    </div>
+
+    <!-- Tab Content: Singles -->
+    <div class="tab-content active" id="tab-singles" data-tab-name="singles" data-items-count="{{ singles|length }}">
+      {% if singles %}
+      <div class="album-grid" id="grid-singles">
+        {% for album in singles %}
+        <a href="{{ url_for('album_detail', album_id=album.id, slug=slugify_text(album.title)) }}" class="album-card" data-album-index="{{ loop.index0 }}">
+          <div class="album-cover-wrap">
+            <img src="{{ album.cover_url }}" alt="{{ album.title }}">
+            {% set album_is_the_shah = album.tracks|selectattr('is_the_shah', 'equalto', true)|list|length > 0 %}
+            {% if album_is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+            <span class="play-overlay">مشاهده</span>
+          </div>
+          <h3>{{ album.title }}</h3>
+          <p>{{ album.release_year }}</p>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="pagination" id="pagination-singles"></div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ تک آهنگی ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+    <!-- Tab Content: EPs -->
+    <div class="tab-content" id="tab-eps" data-tab-name="eps" data-items-count="{{ eps|length }}">
+      {% if eps %}
+      <div class="album-grid" id="grid-eps">
+        {% for album in eps %}
+        <a href="{{ url_for('album_detail', album_id=album.id, slug=slugify_text(album.title)) }}" class="album-card" data-album-index="{{ loop.index0 }}">
+          <div class="album-cover-wrap">
+            <img src="{{ album.cover_url }}" alt="{{ album.title }}">
+            <span class="play-overlay">مشاهده</span>
+          </div>
+          <h3>{{ album.title }}</h3>
+          <p>{{ album.release_year }} · {{ album.tracks|length }} آهنگ</p>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="pagination" id="pagination-eps"></div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ آلبوم کوتاهی ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+    <!-- Tab Content: Full Albums -->
+    <div class="tab-content" id="tab-albums" data-tab-name="albums" data-items-count="{{ full_albums|length }}">
+      {% if full_albums %}
+      <div class="album-grid" id="grid-albums">
+        {% for album in full_albums %}
+        <a href="{{ url_for('album_detail', album_id=album.id, slug=slugify_text(album.title)) }}" class="album-card" data-album-index="{{ loop.index0 }}">
+          <div class="album-cover-wrap">
+            <img src="{{ album.cover_url }}" alt="{{ album.title }}">
+            <span class="play-overlay">مشاهده</span>
+          </div>
+          <h3>{{ album.title }}</h3>
+          <p>{{ album.release_year }} · {{ album.tracks|length }} آهنگ</p>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="pagination" id="pagination-albums"></div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ آلبوم ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/discography-tabs.js') }}"></script>
+
+{% endblock %}

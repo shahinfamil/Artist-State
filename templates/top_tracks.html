@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}پرطرفدارترین آهنگ‌ها — {{ artist.name }}{% endblock %}
+{% block content %}
+
+<section class="album-hero">
+  <div class="container">
+    <p class="eyebrow"><a href="{{ url_for('home') }}">{{ artist.name }}</a></p>
+    <h1>پرطرفدارترین آهنگ‌ها</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <!-- Tab Navigation -->
+    <div class="discography-tabs">
+      <button class="tab-btn active" data-tab="all">
+        <span class="tab-label">همه پلتفرم‌ها</span>
+      </button>
+      <button class="tab-btn" data-tab="spotify" aria-label="اسپاتیفای">
+        <i class="icon ri-spotify-fill" aria-hidden="true"></i>
+        <span class="sr-only">اسپاتیفای</span>
+      </button>
+      <button class="tab-btn" data-tab="youtube" aria-label="یوتیوب">
+        <i class="icon ri-youtube-fill" aria-hidden="true"></i>
+        <span class="sr-only">یوتیوب</span>
+      </button>
+      <button class="tab-btn" data-tab="soundcloud" aria-label="ساندکلود">
+        <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
+        <span class="sr-only">ساندکلود</span>
+      </button>
+    </div>
+
+    <!-- Tab Content: All Platforms -->
+    <div class="tab-content active" id="tab-all" data-tab-name="all">
+      {% if top_all %}
+      <div class="track-list">
+        {% for track in top_all %}
+        {% set stats = track.latest_stats() %}
+        {% set total = track.total_views() %}
+        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+          <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+          <div class="track-cover-wrap">
+            <img class="track-cover" src="{{ track.cover_url }}" alt="">
+            {% if track.is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+          </div>
+          <span class="track-info">
+            <span class="track-title-row">
+              <span class="track-title">{{ track.title }}</span>
+
+            </span>
+            {% set release_kind = release_label(track) %}
+            {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
+          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
+          </span>
+          <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
+            {% set sp = stats.spotify or 0 %}
+            {% set yt = stats.youtube or 0 %}
+            {% set sc = stats.soundcloud or 0 %}
+            {% set t = (sp + yt + sc) or 1 %}
+            <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
+            <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
+            <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
+          </span>
+          <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ ترکی ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+    <!-- Tab Content: Spotify -->
+    <div class="tab-content" id="tab-spotify" data-tab-name="spotify">
+      {% if top_spotify %}
+      <div class="track-list">
+        {% for track in top_spotify %}
+        {% set stats = track.latest_stats() %}
+        {% set spotify_views = stats.spotify or 0 %}
+        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+          <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+          <div class="track-cover-wrap">
+            <img class="track-cover" src="{{ track.cover_url }}" alt="">
+            {% if track.is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+          </div>
+          <span class="track-info">
+            <span class="track-title-row">
+              <span class="track-title">{{ track.title }}</span>
+            </span>
+            {% set release_kind = release_label(track) %}
+            {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
+          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
+          </span>
+          <span class="track-bars" title="ویوهای اسپاتیفای">
+            <span class="bar bar-spotify" style="width:100%"></span>
+          </span>
+          <span class="track-total">{{ spotify_views|format_number }}<small>ویو</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ ترکی بر اسپاتیفای ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+    <!-- Tab Content: YouTube -->
+    <div class="tab-content" id="tab-youtube" data-tab-name="youtube">
+      {% if top_youtube %}
+      <div class="track-list">
+        {% for track in top_youtube %}
+        {% set stats = track.latest_stats() %}
+        {% set youtube_views = stats.youtube or 0 %}
+        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+          <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+          <div class="track-cover-wrap">
+            <img class="track-cover" src="{{ track.cover_url }}" alt="">
+            {% if track.is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+          </div>
+          <span class="track-info">
+            <span class="track-title-row">
+              <span class="track-title">{{ track.title }}</span>
+            </span>
+            {% set release_kind = release_label(track) %}
+            {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
+          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
+          </span>
+          <span class="track-bars" title="ویوهای یوتیوب">
+            <span class="bar bar-youtube" style="width:100%"></span>
+          </span>
+          <span class="track-total">{{ youtube_views|format_number }}<small>ویو</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ ترکی بر یوتیوب ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+    <!-- Tab Content: SoundCloud -->
+    <div class="tab-content" id="tab-soundcloud" data-tab-name="soundcloud">
+      {% if top_soundcloud %}
+      <div class="track-list">
+        {% for track in top_soundcloud %}
+        {% set stats = track.latest_stats() %}
+        {% set soundcloud_views = stats.soundcloud or 0 %}
+        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+          <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+          <div class="track-cover-wrap">
+            <img class="track-cover" src="{{ track.cover_url }}" alt="">
+            {% if track.is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+          </div>
+          <span class="track-info">
+            <span class="track-title-row">
+              <span class="track-title">{{ track.title }}</span>
+            </span>
+            {% set release_kind = release_label(track) %}
+            {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
+          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
+          </span>
+          <span class="track-bars" title="ویوهای ساندکلود">
+            <span class="bar bar-soundcloud" style="width:100%"></span>
+          </span>
+          <span class="track-total">{{ soundcloud_views|format_number }}<small>ویو</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">هنوز هیچ ترکی بر ساندکلود ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/discography-tabs.js') }}"></script>
+
+{% endblock %}

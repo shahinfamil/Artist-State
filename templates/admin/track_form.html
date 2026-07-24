@@ -1,0 +1,139 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ "ویرایش ترک" if track else "ترک جدید" }}{% endblock %}
+{% block content %}
+<div class="admin-container">
+  <div class="admin-card">
+    <form method="POST" class="admin-form" enctype="multipart/form-data" data-upload-url="{{ url_for('admin.upload_media') }}">
+      <div class="form-grid-2">
+      <h2>{{ "ویرایش ترک" if track else "افزودن ترک جدید" }} <span class="muted">— آلبوم: {{ album.title }}</span></h2>
+        <label class="simple-toggle" title="انتشار با نام هنری the shah">
+          <span class="toggle-text toggle-text--english font-en">The Shah</span>
+          <input type="checkbox" name="is_the_shah" value="1" {% if track and track.is_the_shah %}checked{% endif %} aria-label="انتشار با نام هنری the shah">
+          <span class="simple-slider" aria-hidden="true"></span>
+        </label>
+      </div>
+      <div class="form-grid-2">
+      {% if request.args.get('next') %}
+        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+      {% endif %}
+      {% if request.args.get('next_tab') %}
+        <input type="hidden" name="next_tab" value="{{ request.args.get('next_tab') }}">
+      {% endif %}
+      <label>عنوان ترک *
+        <input type="text" name="title" value="{{ track.title if track else '' }}" required>
+      </label>
+       <label>همکاری (اختیاری - در صورت وجود همکاری)
+        <input type="text" name="featuring" value="{{ track.featuring if track else '' }}">
+      </label>
+      </div>
+      
+      <div class="form-grid-2">
+        <label>مدت زمان (مثلا 3:45)
+          <input type="text" name="duration" value="{{ track.duration if track else '' }}" placeholder="3:45">
+        </label>
+        <label>تاریخ انتشار آهنگ
+          <div class="date-selects">
+            <select name="release_day" class="date-select" aria-label="روز">
+              {% set selected_day = track.release_date.day if track and track.release_date else album.release_date.day if album and album.release_date else 1 %}
+              {% for day in range(1, 32) %}
+              <option value="{{ day }}" {% if day == selected_day %}selected{% endif %}>{{ day }}</option>
+              {% endfor %}
+            </select>
+            <select name="release_month" class="date-select" aria-label="ماه">
+              {% set selected_month = track.release_date.month if track and track.release_date else album.release_date.month if album and album.release_date else 1 %}
+              {% for month in range(1, 13) %}
+              <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+              {% endfor %}
+            </select>
+            <select name="release_year" class="date-select" aria-label="سال">
+              {% set selected_year = track.release_date.year if track and track.release_date else album.release_date.year if album and album.release_date else now_year %}
+              {% for year in range(now_year + 1, now_year - 25, -1) %}
+              <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </label>
+      </div>
+      <div class="form-grid-2">
+      <div>
+        <label>لینک تصویر کاور (اختیاری - پیش‌فرض کاور آلبوم)
+          <input type="text" name="cover_url" value="{{ track.cover_url if track else '' }}" placeholder="https://... یا مسیر فایل">
+          <div class="image-url-drop-area image-url-dropzone" data-target-input="cover_url" tabindex="0" aria-label="منطقه درگ و رها کردن تصویر کاور">
+            <span class="image-url-dropzone-label">فایل را بکشید و رها کنید یا کلیک کنید</span>
+            <div class="image-url-preview"></div>
+          </div>
+        </label>
+      </div>
+      <fieldset class="genre-fieldset">
+        <legend>ژانر موزیک (یک یا چند)</legend>
+        <p class="muted">می‌توانید چند ژانر انتخاب کنید و یا ژانرهای دیگری را دستی وارد کنید.</p>
+        
+        {% set genres_list = (track.genre if track else '')|split(',') | map('trim') | list %}
+        {% set extra_genres = [] %}
+        {% for g in genres_list %}
+          {% if g and g not in suggested_genres %}
+            {% set _ = extra_genres.append(g) %}
+          {% endif %}
+        {% endfor %}
+        <div class="genre-quick-picks">
+          {% for g in suggested_genres %}
+          <label class="genre-checkbox">
+            <input type="checkbox" name="genres" value="{{ g }}" class="genre-checkbox-input" {% if g in genres_list %}checked{% endif %}>
+            <span class="genre-checkbox-label">{{ g }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="genre-custom-input">
+          <label>ژانرهای دیگر (جدا شده با کاما)
+            <input type="text" id="genre-custom-input" value="{{ extra_genres|join(', ') }}" placeholder="مثلا: تاریخی، آزمایشی، موج نو...">
+          </label>
+        </div>
+        <div class="genre-selected-display">
+          <label>ژانرهای انتخاب‌شده:
+            <input type="text" name="genre" id="genre-result" value="{{ track.genre if track else '' }}" readonly placeholder="ژانرهای انتخاب‌شده اینجا نمایش داده می‌شوند">
+          </label>
+        </div>
+      </fieldset>
+      </div>
+      <hr>
+      <p class="muted">لینک دقیق صفحه ترک در هر پلتفرم را وارد کنید — این لینک‌ها برای آپدیت روزانه آمار ویو استفاده می‌شوند.</p>
+      <div class="form-grid-2">
+      <label class="platform-label platform-spotify">لینک اسپاتیفای 
+        <input type="url" name="spotify_url" value="{{ track.spotify_url if track else '' }}" placeholder="https://open.spotify.com/track/xxxx">
+      </label>
+      <label class="platform-label platform-soundcloud">لینک ساندکلود
+        <input type="url" name="soundcloud_url" value="{{ track.soundcloud_url if track else '' }}" placeholder="https://soundcloud.com/artist/track">
+      </label>
+      </div>
+      <div class="form-grid-2">
+      <div class="platform-label platform-youtube youtube-link-block">
+        <span class="youtube-link-title">لینک اول یوتیوب</span>
+        <div class="youtube-link-row">
+          <input type="url" name="youtube_url" class="youtube-link-input" value="{{ track.youtube_url if track else '' }}" placeholder="https://youtube.com/watch?v=xxxx">
+          <label class="youtube-video-toggle">
+            <input type="checkbox" name="youtube_url_is_music_video" value="1" id="youtube_url_is_music_video" {% if track and track.youtube_url_is_music_video %}checked{% endif %}>
+          </label>
+        </div>
+        <p class="youtube-link-hint">اگر این لینک موزیک ویدیو است، اینجا فعال کنید.</p>
+      </div>
+      <div class="platform-label platform-youtube youtube-link-block">
+        <span class="youtube-link-title">لینک دوم یوتیوب</span>
+        <div class="youtube-link-row">
+          <input type="url" name="youtube_url_secondary" class="youtube-link-input" value="{{ track.youtube_url_secondary if track else '' }}" placeholder="https://youtube.com/watch?v=xxxx">
+          <label class="youtube-video-toggle">
+            <input type="checkbox" name="youtube_url_secondary_is_music_video" value="1" id="youtube_url_secondary_is_music_video" {% if track and track.youtube_url_secondary_is_music_video %}checked{% endif %}>
+          </label>
+        </div>
+        <p class="youtube-link-hint">اگر این لینک موزیک ویدیو است، اینجا فعال کنید.</p>
+      </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">ذخیره</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-track-form.js') }}?v=20260717"></script>
+{% endblock %}

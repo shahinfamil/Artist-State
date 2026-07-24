@@ -1,0 +1,23 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}آنالیز بازدیدها{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  {% if not artist %}
+    <div class="admin-card">
+      <h2>برای شروع، اطلاعات آرتیست را وارد کنید</h2>
+      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-primary">افزودن اطلاعات آرتیست</a>
+    </div>
+  {% else %}
+    <div class="admin-dashboard" id="admin-dashboard">
+      <section class="admin-card admin-tab-panel analytics-panel is-active" data-tab-panel="analytics">
+        {% include 'admin/partials/analytics_panel.html' %}
+      </section>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}?v=20260717"></script>
+{% endblock %}
