@@ -13,8 +13,6 @@ myenv/
 ENV/
 
 # Database (SQLite) - مهم!
-*.db
-data.db
 instance/
 
 # Environment variables
