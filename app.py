@@ -1814,10 +1814,19 @@ def initialize_database(app, reset=False):
 
 def create_app():
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
+
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SECRET_KEY"] = "change-this-secret-key"
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key")
     app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # حداکثر ۵۰ مگابایت برای آپلود فایل صوتی
+
+    if database_url:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
 
     db.init_app(app)
     Migrate(app, db)
