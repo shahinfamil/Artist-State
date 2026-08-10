@@ -1815,15 +1815,13 @@ def initialize_database(app, reset=False):
 def create_app():
     app = Flask(__name__)
 
-    # دیتابیس
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
-        # Railway گاهی postgres:// می‌دهد
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     else:
-        # حالت لوکال (SQLite)
+        # فقط برای اجرای لوکال
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
 
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
