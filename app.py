@@ -31,10 +31,10 @@ SOCIAL_HEADERS = {
     ),
     "Accept-Language": "en-US,en;q=0.9",
 }
-
-SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY", "a12467cd6adb619baa02f967e7366b6ae8da56bd529e181049b5862a5de7af9e")
-APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "apify_api_SdjRy3j2QXqJIJufXJT3uY0BuDVwWn3rwyg8")
-YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "AIzaSyC9GpfkEUWFWKRePbUBeEfaVCEmgQSp4Mo")
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY", "")
+APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
 
 INSTAGRAM_RATE_LIMIT_UNTIL = None
 INSTAGRAM_REQUEST_LOCK = threading.Lock()
@@ -1814,10 +1814,21 @@ def initialize_database(app, reset=False):
 
 def create_app():
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
+
+    # دیتابیس
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        # Railway گاهی postgres:// می‌دهد
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    else:
+        # حالت لوکال (SQLite)
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SECRET_KEY"] = "change-this-secret-key"
-    app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # حداکثر ۵۰ مگابایت برای آپلود فایل صوتی
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
+    app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 
     db.init_app(app)
     Migrate(app, db)
