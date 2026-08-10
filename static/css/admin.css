@@ -21,6 +21,13 @@
 .admin-nav a:hover { color: var(--gold); }
 
 .admin-main { padding: 32px 0 80px; }
+.admin-main--login {
+  padding: 0;
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .admin-shell {
   max-width: 1380px;
   margin: 0 auto;
@@ -29,6 +36,19 @@
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
+}
+.admin-shell--login {
+  max-width: 420px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 420px);
+}
+.admin-shell--login .admin-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 .admin-sidebar {
   position: sticky;
@@ -1588,6 +1608,13 @@ hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0; 
 /* ---------- Login ---------- */
 .login-screen {
   min-height: 70vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-shell--login .login-screen {
+  min-height: calc(100vh - 160px);
   display: flex;
   align-items: center;
   justify-content: center;

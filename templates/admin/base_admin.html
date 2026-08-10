@@ -24,8 +24,8 @@
 </header>
 {% endif %}
 
-<main class="admin-main">
-  <div class="admin-shell">
+<main class="admin-main{% if not session.get('admin_logged_in') %} admin-main--login{% endif %}">
+  <div class="admin-shell{% if not session.get('admin_logged_in') %} admin-shell--login{% endif %}">
     {% if session.get('admin_logged_in') %}
     <aside class="admin-sidebar" aria-label="منوی مدیریت">
       <div class="admin-sidebar__brand">
