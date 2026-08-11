@@ -972,6 +972,10 @@ body.auth-modal-open .auth-recovery-popup__close {
     padding-inline: 14px;
   }
 
+  .section {
+    padding: 56px 0;
+  }
+
   .site-header {
     background: rgba(11, 11, 13, 0.96);
   }
@@ -1140,6 +1144,7 @@ body.auth-modal-open .auth-recovery-popup__close {
     font-size: 1rem !important;
     line-height: 1.2rem !important;
     white-space: nowrap !important;
+    padding: 8px !important;
   }
 }
 
@@ -1427,10 +1432,10 @@ body.auth-modal-open .auth-recovery-popup__close {
 .pill-facebook {color: var(--facebook); }
 .icon {
   display: inline-flex;
-  width: 1.8rem;
-  height: 1.8rem;
-  min-width: 1.8rem;
-  min-height: 1.8rem;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  min-height: 1rem;
   fill: currentColor;
   stroke: currentColor;
   justify-content: center;

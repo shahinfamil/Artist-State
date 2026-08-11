@@ -33,9 +33,8 @@ myenv\Scripts\activate
 set FLASK_APP=app:create_app
 python -m flask db upgrade
 
-
-#### پنل مدیریت
-http://localhost:5000/admin
-export ADMIN_USERNAME="admin"
-export ADMIN_PASSWORD="admin123"
+### ذخیره در گیتهاب  
+git add .
+git commit -m "Final update for Railway"
+git push origin main
 
