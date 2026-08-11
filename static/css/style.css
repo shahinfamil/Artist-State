@@ -1575,6 +1575,9 @@ body.auth-modal-open .auth-recovery-popup__close {
   font-size: 2rem;
   margin: 0;
 }
+.section-head i {
+    padding: 15px;
+}
 .history-subtitle {
   margin: 10px auto 0;
   color: var(--muted);
@@ -1897,14 +1900,16 @@ body.auth-modal-open .auth-recovery-popup__close {
 }
 
 .wiki-social-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
-  justify-content: center;
-  gap: 12px;
-  margin: 24px auto;
-  max-width: 1020px;
-  padding: 0 10px;
-  align-items: center;
+    display: flex;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
+    gap: 12px;
+    margin: 24px auto;
+    max-width: 1020px;
+    align-items: center;
+    justify-content: space-evenly;
+    grid-auto-flow: row;
+    flex-direction: row;
+    flex-wrap: wrap;
 }
 
 .wiki-social-grid-header {
@@ -2825,6 +2830,13 @@ body.auth-modal-open .auth-recovery-popup__close {
   }
   .wiki-article-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+  .wiki-article-sidebar {
+    grid-row: 1;
+  }
+  .wiki-article-content {
+    grid-row: 2;
   }
   .wiki-article-title {
     font-size: 2rem;
@@ -2833,6 +2845,234 @@ body.auth-modal-open .auth-recovery-popup__close {
     margin-top: 24px;
   }
 }
+
+@media (max-width: 720px) {
+  .wiki-page-container {
+    padding: 18px 14px 24px;
+  }
+
+  .wiki-article-title {
+    font-size: 1.7rem;
+    line-height: 1.15;
+  }
+
+  .wiki-article-layout {
+    gap: 20px;
+  }
+
+  .wiki-social-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 600px;
+    margin: 20px auto;
+    gap: 10px;
+  }
+
+  .wiki-social-grid-header {
+    margin-bottom: 8px;
+  }
+
+  .wiki-social-grid-header h3 {
+    font-size: 0.88rem;
+    letter-spacing: 0.15px;
+  }
+
+  .social-count {
+    font-size: 0.95rem;
+  }
+
+  .social-meta {
+    font-size: 0.72rem;
+  }
+
+  .wiki-social-card {
+    padding: 10px;
+    gap: 6px;
+    min-height: 0;
+  }
+
+  .social-top-row {
+    gap: 5px;
+  }
+
+  .wiki-social-card .social-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .wiki-social-card .social-icon .icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .wiki-timeline-section,
+  .wiki-discography-section {
+    width: 100%;
+  }
+
+  .wiki-discography-table-wrap {
+    margin-top: 14px;
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  .wiki-discography-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .wiki-discography-table th,
+  .wiki-discography-table td {
+    padding: 10px 12px;
+    white-space: normal;
+    font-size: 0.5rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  .wiki-discography-table th {
+    font-size: 0.85rem;
+  }
+
+  .wiki-biography-section {
+    padding: 20px 16px;
+  }
+
+  .wiki-biography-section .wiki-biography-content {
+    padding-left: 14px;
+  }
+
+  .wiki-biography-content > p,
+  .wiki-biography-content > ul,
+  .wiki-biography-content > ol,
+  .wiki-biography-content > blockquote {
+    padding: 14px 14px 14px 18px;
+  }
+
+  .wiki-biography-content ul li,
+  .wiki-biography-content ol li {
+    padding: 12px 16px;
+  }
+
+  .wiki-biography-header {
+    gap: 10px;
+    padding-bottom: 10px;
+  }
+
+  .wiki-biography-title .icon {
+    font-size: 1.4rem;
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .wiki-biography-header .wiki-text {
+    font-size: 1.35rem;
+  }
+
+  .wiki-infobox {
+    text-align: start;
+  }
+
+  .wiki-infobox-table {
+    width: 100%;
+  }
+
+  .wiki-infobox-table th,
+  .wiki-infobox-table td {
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .wiki-page-container {
+    padding: 14px 10px 18px;
+  }
+
+  .wiki-article-title {
+    font-size: 1.55rem;
+    line-height: 1.18;
+  }
+
+  .wiki-social-grid {
+    gap: 8px;
+  }
+
+  .wiki-social-grid-header h3 {
+    font-size: 0.78rem;
+  }
+
+  .wiki-social-card {
+    padding: 8px;
+    gap: 5px;
+  }
+
+  .wiki-social-card .social-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .wiki-social-card .social-icon .icon {
+    width: 0.8rem;
+    height: 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .wiki-discography-section,
+  .wiki-timeline-section {
+    width: 100%;
+  }
+
+  .wiki-discography-table-wrap {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  .wiki-discography-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .wiki-discography-table th,
+  .wiki-discography-table td {
+    padding: 8px 10px;
+    font-size: 0.5rem;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  .wiki-biography-section {
+    padding: 16px 12px;
+  }
+
+  .wiki-biography-content > p,
+  .wiki-biography-content > ul,
+  .wiki-biography-content > ol,
+  .wiki-biography-content > blockquote {
+    padding: 12px 12px 12px 16px;
+  }
+
+  .wiki-biography-content ul li,
+  .wiki-biography-content ol li {
+    padding: 10px 14px;
+  }
+
+  .wiki-biography-header .wiki-text {
+    font-size: 1.25rem;
+  }
+
+  .wiki-infobox-table th,
+  .wiki-infobox-table td {
+    padding: 8px 6px;
+    font-size: 0.85rem;
+  }
+}
+
 .wiki-summary-card {
   margin-top: 18px;
   padding: 16px;
@@ -2913,7 +3153,7 @@ body.auth-modal-open .auth-recovery-popup__close {
 
 .english-numbers {
   font-family: var(--font-en);
-  font-size: 0.9rem;
+  font-size: 0.5rem;
   line-height: 1.3;
   unicode-bidi: isolate-override;
   direction: ltr;

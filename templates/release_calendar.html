@@ -102,37 +102,5 @@
     <p class="empty-state">هنوز تاریخ انتشار برای هیچ ترانه‌ای ثبت نشده است. اگر آلبوم‌ها/ترانه‌ها دارید، تاریخ انتشار را در پنل ادمین وارد کنید تا در اینجا نمایش داده شوند.</p>
     {% endif %}
 </section>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const clockValue = document.getElementById('todayClockValue');
-    if (!clockValue) return;
-
-    const pad = (num) => num.toString().padStart(2, '0');
-    const updateClock = () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const shortYear = pad(year % 100);
-      const month = pad(now.getMonth() + 1);
-      const day = pad(now.getDate());
-      const hours = pad(now.getHours());
-      const minutes = pad(now.getMinutes());
-      const seconds = pad(now.getSeconds());
-      const yearElement = document.getElementById('todayClockDateYear');
-      const monthElement = document.getElementById('todayClockDateMonth');
-      const dayElement = document.getElementById('todayClockDateDay');
-      const hourElement = document.getElementById('todayClockHour');
-      const minuteElement = document.getElementById('todayClockMinute');
-      const secondElement = document.getElementById('todayClockSecond');
-      if (yearElement) yearElement.textContent = shortYear;
-      if (monthElement) monthElement.textContent = month;
-      if (dayElement) dayElement.textContent = day;
-      if (hourElement) hourElement.textContent = hours;
-      if (minuteElement) minuteElement.textContent = minutes;
-      if (secondElement) secondElement.textContent = seconds;
-    };
-
-    updateClock();
-    setInterval(updateClock, 1000);
-  });
-</script>
+<script src="{{ url_for('static', filename='js/release-calendar.js') }}"></script>
 {% endblock %}

@@ -204,28 +204,8 @@
   </div>
 </section>
 
-<script>
-window.TRACK_HISTORY = {{ history_json|safe }};
-
-document.addEventListener('DOMContentLoaded', function () {
-  const tabButtons = document.querySelectorAll('.video-tab-button');
-  const tabPanels = document.querySelectorAll('.video-tab-panel');
-
-  if (!tabButtons.length || !tabPanels.length) {
-    return;
-  }
-
-  tabButtons.forEach((button) => {
-    button.addEventListener('click', function () {
-      const target = this.dataset.videoTab;
-      tabButtons.forEach((btn) => btn.classList.toggle('active', btn === this));
-      tabPanels.forEach((panel) => {
-        panel.classList.toggle('active', panel.id === `video-tab-${target}`);
-      });
-    });
-  });
-});
-</script>
+<script>window.TRACK_HISTORY = {{ history_json|safe }};</script>
+<script src="{{ url_for('static', filename='js/track-page.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.11/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy.css" />

@@ -55,41 +55,7 @@
           <div class="wiki-biography-content">{{ wiki_data.timeline_section|safe }}</div>
         </section>
         {% endif %}
-
-        {% if discography_tracks %}
-        <section class="wiki-discography-section">
-          <span class="wiki-text">آهنگ های منتشر شده</span>
-          <div class="wiki-discography-table-wrap">
-            <table class="wiki-discography-table">
-              <thead>
-                <tr>
-                  <th>ردیف</th>
-                  <th>عنوان</th>
-                  <th>آلبوم</th>
-                  <th>مدت</th>
-                  <th>همکاری</th>
-                  <th>تاریخ انتشار</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for track in discography_tracks %}
-                  {% set track_date = track.release_date or (track.album.release_date if track.album else None) %}
-                  <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ track.title }}</td>
-                    <td>{{ track.album.title if track.album else '—' }}</td>
-                    <td>{{ track.duration or '—' }}</td>
-                    <td>{{ track.featuring or '—' }}</td>
-                    <td>{{ track_date|format_date_short_jalali if track_date else (track.album.release_year if track.album else 'بدون تاریخ') }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </section>
-        {% endif %}
       </main>
-
       <aside class="wiki-article-sidebar">
         <div class="wiki-infobox">
           {% if wiki_data.image_url %}
@@ -131,26 +97,5 @@
     </div>
   </div>
 </section>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    var collapsibleSection = document.querySelector('.wiki-biography-section[data-collapsible]');
-    if (!collapsibleSection) return;
-
-    var content = collapsibleSection.querySelector('.wiki-biography-content');
-    var toggleButton = collapsibleSection.querySelector('.wiki-biography-collapse-toggle');
-    if (!content || !toggleButton) return;
-
-    var collapsedHeight = 280;
-    if (content.scrollHeight <= collapsedHeight + 8) {
-      toggleButton.style.display = 'none';
-      return;
-    }
-
-    toggleButton.addEventListener('click', function () {
-      var isExpanded = collapsibleSection.classList.toggle('is-expanded');
-      toggleButton.textContent = isExpanded ? 'بستن' : 'نمایش بیشتر';
-      toggleButton.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-    });
-  });
-</script>
+<script src="{{ url_for('static', filename='js/wiki-artist.js') }}"></script>
 {% endblock %}

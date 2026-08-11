@@ -111,10 +111,10 @@
   <div class="container">
     <div class="section-head">
       <h2 class="eyebrow">
-        <i class="icon ri-bar-chart-fill" aria-hidden="true"></i>
         <a href="{{ url_for('top_tracks_list') }}" class="view-all">
         پرطرفدارترین آهنگ‌ها
         </a>
+        <i class="icon ri-bar-chart-fill" aria-hidden="true"></i>
       </h2>
 
     </div>
@@ -162,10 +162,10 @@
   <div class="container">
     <div class="section-head">
       <h2 class="eyebrow">
-        <i class="icon ri-disc-line" aria-hidden="true"></i>
         <a href="{{ url_for('albums_list') }}">
         دیسکوگرافی
         </a>
+        <i class="icon ri-disc-line" aria-hidden="true"></i>
       </h2>
     </div>
 
@@ -388,44 +388,7 @@
     <div class="section-head" style="margin-top: 24px; margin-bottom: 0;">
       <a href="{{ url_for('release_calendar_page') }}" class="view-all">مشاهده‌ی کامل تقویم</a>
     </div>
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        const cells = document.querySelectorAll('.release-calendar__cell');
-        if (!cells.length) return;
-
-        const closeAll = () => {
-          cells.forEach((cell) => cell.classList.remove('is-open'));
-        };
-
-        cells.forEach((cell) => {
-          const toggle = cell.querySelector('.release-calendar__cell-toggle');
-          if (!toggle) return;
-
-          toggle.addEventListener('click', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            const isOpen = cell.classList.contains('is-open');
-            closeAll();
-            if (!isOpen) {
-              cell.classList.add('is-open');
-            }
-          });
-        });
-
-        document.addEventListener('click', function (event) {
-          const clickedInside = Array.from(cells).some((cell) => cell.contains(event.target));
-          if (!clickedInside) {
-            closeAll();
-          }
-        });
-
-        document.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape') {
-            closeAll();
-          }
-        });
-      });
-    </script>
+    <script src="{{ url_for('static', filename='js/home-page.js') }}"></script>
     {% else %}
     <p class="empty-state">هنوز تاریخ انتشار برای هیچ ترانه‌ای ثبت نشده است.</p>
     {% endif %}
