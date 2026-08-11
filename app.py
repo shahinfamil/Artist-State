@@ -2085,10 +2085,12 @@ def register_routes(app):
 
     @app.context_processor
     def inject_globals():
+        artist = Artist.query.first()
         return {
             "now_year": datetime.now().year,
             "current_user": get_current_user(),
             "slugify_text": slugify_text,
+            "artist": artist,
         }
 
     @app.route('/check-username')

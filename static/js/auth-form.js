@@ -57,14 +57,6 @@ function applyAutoFontToElement(element) {
 
   element.classList.toggle('font-en', lang === 'en');
   element.classList.toggle('font-fa', lang === 'fa');
-
-  if (lang === 'en') {
-    element.style.fontFamily = 'var(--font-en)';
-  } else if (lang === 'fa') {
-    element.style.fontFamily = 'var(--font-body)';
-  } else {
-    element.style.fontFamily = '';
-  }
 }
 
 function applyAutoFontToPage(root = document) {

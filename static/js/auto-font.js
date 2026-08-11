@@ -1,5 +1,5 @@
 const AUTO_FONT_IGNORE_TAGS = ['SCRIPT', 'STYLE', 'SVG', 'PATH', 'IMG', 'CANVAS', 'VIDEO', 'AUDIO', 'IFRAME', 'NOSCRIPT', 'LINK', 'META'];
-const AUTO_FONT_TEXT_SELECTORS = 'p, span, a, li, h1, h2, h3, h4, h5, h6, label, button, strong, em, b, small, div, td, th, option, pre, blockquote, figcaption, time';
+const AUTO_FONT_TEXT_SELECTORS = 'p, span, a, li, h1, h2, h3, h4, h5, h6, label, button, strong, em, b, small, td, th, option, pre, blockquote, figcaption, time';
 
 function detectTextLanguage(text) {
   const value = (text || '').toString().trim();
@@ -7,11 +7,23 @@ function detectTextLanguage(text) {
     return 'default';
   }
 
-  if (/[\u0600-\u06FF]/.test(value)) {
+  const hasFa = /[\u0600-\u06FF]/.test(value);
+  const hasEn = /[A-Za-z]/.test(value);
+  const isNumericOnly = /^[\d\s,.:/+-]+$/.test(value);
+
+  if (isNumericOnly) {
+    return 'en';
+  }
+
+  if (hasFa && hasEn) {
+    return 'mixed';
+  }
+
+  if (hasFa || /^[\u0600-\u06FF\s\d\W]+$/.test(value)) {
     return 'fa';
   }
 
-  if (/[A-Za-z]/.test(value) || /\d/.test(value)) {
+  if (hasEn || /\d/.test(value)) {
     return 'en';
   }
 
@@ -29,6 +41,10 @@ function shouldSkipElement(element) {
 
   const tagName = element.tagName.toUpperCase();
   if (AUTO_FONT_IGNORE_TAGS.includes(tagName)) {
+    return true;
+  }
+
+  if (['DIV', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE', 'HEADER', 'FOOTER'].includes(tagName)) {
     return true;
   }
 
@@ -61,13 +77,20 @@ function applyAutoFontToElement(element) {
 
   element.classList.toggle('font-en', lang === 'en');
   element.classList.toggle('font-fa', lang === 'fa');
+  element.classList.toggle('font-mixed', lang === 'mixed');
 
   if (lang === 'en') {
-    element.style.fontFamily = 'var(--font-en)';
+    element.setAttribute('data-auto-lang', 'en');
   } else if (lang === 'fa') {
-    element.style.fontFamily = 'var(--font-body)';
+    element.setAttribute('data-auto-lang', 'fa');
+  } else if (lang === 'mixed') {
+    element.setAttribute('data-auto-lang', 'mixed');
   } else {
-    element.style.fontFamily = '';
+    element.removeAttribute('data-auto-lang');
+  }
+
+  if (lang === 'mixed') {
+    element.classList.remove('font-en', 'font-fa');
   }
 }
 

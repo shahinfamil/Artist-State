@@ -9,40 +9,7 @@
         تقویم انتشار
       </h2>
     </div>
-    <div class="release-calendar__current-time" id="todayClockBox">
-      <div class="release-calendar__current-time-content">
-        <div class="release-calendar__current-time-value" id="todayClockValue">
-          <div class="release-calendar__current-time-row" id="todayClockDate">
-            <div class="release-calendar__current-time-group">
-              <span class="release-calendar__current-time-label-compact">روز</span>
-              <span class="release-calendar__current-time-part" id="todayClockDateDay">{{ current_datetime.strftime('%d') }}</span>
-            </div>
-            <div class="release-calendar__current-time-group">
-              <span class="release-calendar__current-time-label-compact">ماه</span>
-              <span class="release-calendar__current-time-part" id="todayClockDateMonth">{{ current_datetime.strftime('%m') }}</span>
-            </div>
-            <div class="release-calendar__current-time-group">
-              <span class="release-calendar__current-time-label-compact">سال</span>
-              <span class="release-calendar__current-time-part" id="todayClockDateYear">{{ current_datetime.strftime('%y') }}</span>
-            </div>
-          </div>
-          <div class="release-calendar__current-time-row" id="todayClockTime">
-            <div class="release-calendar__current-time-group">
-              <span class="release-calendar__current-time-label-compact">ثانیه</span>
-              <span class="release-calendar__current-time-part" id="todayClockSecond">{{ current_datetime.strftime('%S') }}</span>
-            </div>
-            <div class="release-calendar__current-time-group">
-              <span class="release-calendar__current-time-label-compact">دقیقه</span>
-              <span class="release-calendar__current-time-part" id="todayClockMinute">{{ current_datetime.strftime('%M') }}</span>
-            </div>
-            <div class="release-calendar__current-time-group">
-              <span class="release-calendar__current-time-label-compact">ساعت</span>
-              <span class="release-calendar__current-time-part" id="todayClockHour">{{ current_datetime.strftime('%H') }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
     {% if today_releases %}
     <div class="release-calendar__today-releases">
       <div class="release-calendar__today-releases-label">انتشارهای امروز</div>

@@ -36,3 +36,6 @@ tests/
 .render
 staticfiles/
 
+# README and other docs
+*.md
+

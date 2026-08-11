@@ -3,7 +3,7 @@
 <section class="album-hero">
   <div class="container album-hero-inner">
     <img src="{{ album.cover_url }}" class="album-hero-cover" alt="{{ album.title }}">
-    <div>
+    <div class="album-hero-info">
       <p class="eyebrow">
         {{ album.title }} | 
         {% if album.release_type == 'single' %}

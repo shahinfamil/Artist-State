@@ -3,13 +3,67 @@
  */
 
 (function () {
-  const ITEMS_PER_PAGE = 8;
+  function getItemsPerPage() {
+    return window.matchMedia("(max-width: 600px)").matches ? 6 : 8;
+  }
 
   const tabBtns = document.querySelectorAll(".tab-btn");
   const tabContents = document.querySelectorAll(".tab-content");
   const paginationContainers = document.querySelectorAll(".pagination");
 
   if (tabBtns.length === 0) return;
+
+  function attachSwipeNavigation(tabName) {
+    const tabPanel = document.getElementById(`tab-${tabName}`);
+    const paginationEl = document.getElementById(`pagination-${tabName}`);
+    if (!tabPanel || !paginationEl) return;
+
+    let startX = 0;
+    let startY = 0;
+    let deltaX = 0;
+
+    tabPanel.addEventListener("touchstart", (event) => {
+      if (window.innerWidth > 600) return;
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      deltaX = 0;
+    }, { passive: true });
+
+    tabPanel.addEventListener("touchmove", (event) => {
+      if (window.innerWidth > 600) return;
+      const touch = event.touches[0];
+      deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    tabPanel.addEventListener("touchend", (event) => {
+      if (window.innerWidth > 600) return;
+      if (!paginationEl.querySelector(".pagination-page")) return;
+
+      const touch = event.changedTouches[0];
+      const endX = touch.clientX;
+      const endY = touch.clientY;
+      const horizontalDistance = endX - startX;
+      const verticalDistance = endY - startY;
+
+      if (Math.abs(horizontalDistance) < 50 || Math.abs(horizontalDistance) < Math.abs(verticalDistance)) return;
+
+      const activePageBtn = paginationEl.querySelector(".pagination-page.active");
+      const currentPage = parseInt(activePageBtn?.dataset.page || "0");
+      const totalPages = paginationEl.querySelectorAll(".pagination-page").length;
+
+      if (horizontalDistance > 0 && currentPage < totalPages - 1) {
+        goToPage(tabName, paginationEl.querySelector(".pagination-next"));
+      } else if (horizontalDistance < 0 && currentPage > 0) {
+        goToPage(tabName, paginationEl.querySelector(".pagination-prev"));
+      }
+    }, { passive: true });
+  }
 
   // Initialize pagination for each tab
   function initPagination(tabElement) {
@@ -19,14 +73,16 @@
 
     if (!paginationEl) return;
 
+    const itemsPerPage = getItemsPerPage();
+
     // اگر کم از 9 آیتم است، pagination نشان نده
-    if (itemsCount <= ITEMS_PER_PAGE) {
+    if (itemsCount <= itemsPerPage) {
       paginationEl.style.display = "none";
       return;
     }
 
     // تعداد صفحات
-    const totalPages = Math.ceil(itemsCount / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(itemsCount / itemsPerPage);
 
     // HTML pagination
     paginationEl.innerHTML = "";
@@ -75,8 +131,9 @@
     const cards = gridElement.querySelectorAll(".album-card");
     const paginationEl = document.getElementById(`pagination-${tabName}`);
 
-    const startIdx = pageIndex * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const itemsPerPage = getItemsPerPage();
+    const startIdx = pageIndex * itemsPerPage;
+    const endIdx = startIdx + itemsPerPage;
 
     // Hide/show cards
     cards.forEach((card, idx) => {
@@ -151,5 +208,6 @@
   // Initialize pagination for all tabs
   tabContents.forEach((tabElement) => {
     initPagination(tabElement);
+    attachSwipeNavigation(tabElement.dataset.tabName);
   });
 })();
