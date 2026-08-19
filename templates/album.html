@@ -43,9 +43,14 @@
         </div>
         <span class="track-info">
           <span class="track-title-row">
-            <span class="track-title">{{ track.title }}</span>
+            <span class="track-title left">{{ track.title }}</span>
           </span>
-          <span class="track-album date-display">{{ track.duration or "" }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {{ track.display_artist_name }}</span>
+          {% set feature_names = track.collaborator_names %}
+          {% if feature_names and track.lyricist_display %}
+          <span class="track-album date-display font-en"> Lyric: {{ track.lyricist_display }} | Feat: {{ feature_names|join(', ') }}</span>
+          {% elif feature_names %}
+          <span class="track-album date-display font-en">Feat: {{ feature_names|join(', ') }}</span>
+          {% endif %}
         </span>
         <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
           {% set sp = stats.spotify or 0 %}

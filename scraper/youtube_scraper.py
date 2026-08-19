@@ -5,9 +5,12 @@
 """
 import os
 import re
+import time
 from urllib.parse import parse_qs, urlparse
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 HEADERS = {
     "User-Agent": (
@@ -15,7 +18,26 @@ HEADERS = {
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Upgrade-Insecure-Requests": "1",
 }
+
+
+def _build_session():
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        connect=3,
+        read=3,
+        backoff_factor=0.7,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=None,
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
 def normalize_youtube_url(url: str) -> str | None:
@@ -98,7 +120,7 @@ def get_youtube_views(url: str) -> int | None:
             api_resp = requests.get(
                 "https://www.googleapis.com/youtube/v3/videos",
                 params={"part": "statistics", "id": video_id_match.group(1), "key": api_key},
-                timeout=15,
+                timeout=(10, 25),
             )
             api_resp.raise_for_status()
             payload = api_resp.json()
@@ -110,40 +132,58 @@ def get_youtube_views(url: str) -> int | None:
         except Exception as exc:
             print(f"[youtube_scraper] youtube api failed for {normalized_url}: {exc}")
 
-    try:
-        resp = requests.get(normalized_url, headers=HEADERS, timeout=20)
-        resp.raise_for_status()
-        return extract_youtube_view_count(resp.text)
-    except Exception as exc:
-        print(f"[youtube_scraper] error fetching {normalized_url}: {exc}")
-        return None
+    session = _build_session()
+    last_error = None
+
+    for attempt in range(3):
+        try:
+            resp = session.get(normalized_url, headers=HEADERS, timeout=(10, 25))
+            resp.raise_for_status()
+            return extract_youtube_view_count(resp.text)
+        except Exception as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            break
+
+    print(f"[youtube_scraper] error fetching {normalized_url}: {last_error}")
+    return None
 
 
 def get_youtube_music_views(url: str) -> int | None:
     """دریافت تعداد پخش‌های موسیقی یوتیوب (music.youtube.com)"""
     if not url:
         return None
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
-        resp.raise_for_status()
-        html = resp.text
 
-        # الگوی اول: "listenCount":"12345"
-        match = re.search(r'"listenCount":"(\d+)"', html)
-        if match:
-            return int(match.group(1))
+    session = _build_session()
+    last_error = None
 
-        # الگوی دوم: "playCount":"12345"
-        match2 = re.search(r'"playCount":"(\d+)"', html)
-        if match2:
-            return int(match2.group(1))
+    for attempt in range(3):
+        try:
+            resp = session.get(url, headers=HEADERS, timeout=(10, 25))
+            resp.raise_for_status()
+            html = resp.text
 
-        # الگوی پشتیبان: داخل صفحه
-        match3 = re.search(r'([\d,]+)\s+(?:plays|listens)', html)
-        if match3:
-            return int(match3.group(1).replace(",", ""))
+            patterns = [
+                r'"listenCount":"(\d+)"',
+                r'"playCount":"(\d+)"',
+                r'"viewCount":"(\d+)"',
+                r'([\d,]+)\s+(?:plays|listens|views)',
+            ]
 
-        return None
-    except Exception as e:
-        print(f"[youtube_scraper] error fetching music.youtube {url}: {e}")
-        return None
+            for pattern in patterns:
+                match = re.search(pattern, html, flags=re.IGNORECASE)
+                if match:
+                    return int(match.group(1).replace(",", ""))
+
+            return None
+        except Exception as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            break
+
+    print(f"[youtube_scraper] error fetching music.youtube {url}: {last_error}")
+    return None

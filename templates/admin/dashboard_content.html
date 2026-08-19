@@ -18,7 +18,12 @@
           </div>
           <div class="admin-section-head__actions">
             <a href="{{ url_for('admin.album_new', next_tab='content') }}" class="btn btn-primary btn-sm">افزودن دستی آلبوم</a>
-            <a href="{{ url_for('admin.spotify_import', next_tab='content') }}" class="btn btn-outline btn-sm">وارد کردن خودکار از اسپاتیفای</a>
+            <a href="{{ url_for('admin.spotify_import', next_tab='content') }}" class="btn btn-sm admin-spotify-import-btn">وارد کردن خودکار از اسپاتیفای</a>
+            <form method="POST" action="{{ url_for('admin.cleanup_all_view_history') }}" onsubmit="return confirm('تمام تاریخچهٔ قدیمی ویوها حذف شود و فقط داده‌های امروز باقی بمانند؟');" class="admin-inline-form">
+              <button type="submit" class="btn btn-danger btn-sm admin-cleanup-history-btn">
+                پاک‌سازی تاریخچه بازدیدها
+              </button>
+            </form>
             <form method="POST" action="{{ url_for('admin.trigger_update') }}" onsubmit="return confirm('آپدیت اتوماتیک آمار شروع شود؟ ممکن است چند دقیقه طول بکشد.');" class="admin-inline-form">
               <button type="submit" class="btn btn-outline btn-sm">آپدیت اتوماتیک آمار بازدیدها</button>
             </form>

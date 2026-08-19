@@ -48,7 +48,6 @@
             <span class="admin-stat-card__value">{{ singles|length }}</span>
             <p class="admin-stat-card__description">کل تک‌آهنگ‌های منتشر شده</p>
           </div>
-          
         </section>
 
         {% if dashboard_stats %}
@@ -56,7 +55,7 @@
           <div class="admin-section-head">
             <div>
               <h2>آمار</h2>
-              <p class="muted">پراکندگی ژانر، همکاری و موزیک ویدیوها</p>
+              <p class="muted">پراکندگی ژانر، همکاری، ترانه‌سراها و موزیک ویدیوها</p>
             </div>
             <span class="analytics-panel__chip">پیشخوان آماری</span>
           </div>
@@ -84,6 +83,34 @@
               <p class="admin-stat-card__description">تعداد موزیک ویدیوها</p>
             </div>
           </section>
+
+          {% if dashboard_stats.lyricist_stats %}
+          <div class="dashboard-chart-card">
+            <div class="admin-card-header">
+              <h2>آمار ترانه‌سراها</h2>
+            </div>
+            <div class="genre-bar-chart">
+              <div class="genre-bar-chart__header">
+                <span class="genre-bar-chart__hint">تعداد آهنگ‌های نوشته‌شده به‌صورت اشتراکی برای هر ترانه‌سرا</span>
+                <span class="genre-bar-chart__legend">{{ dashboard_stats.lyricist_stats|length }} ترانه‌سرا</span>
+              </div>
+              <div class="genre-bar-chart__bars">
+                <div class="genre-bar-chart__track">
+                  {% set lyricist_max = dashboard_stats.lyricist_stats[0].count if dashboard_stats.lyricist_stats else 0 %}
+                  {% for item in dashboard_stats.lyricist_stats %}
+                  <div class="genre-bar-chart__bar">
+                    <div class="genre-bar-chart__value font-en">{{ item.count }}</div>
+                    <div class="genre-bar-chart__column-wrap">
+                      <div class="genre-bar-chart__column" style="height: {{ (item.count / lyricist_max * 100) if lyricist_max else 0 }}%;"></div>
+                    </div>
+                    <div class="genre-bar-chart__name">{{ item.name }}</div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
 
           {% set genre_max = dashboard_stats.genre_stats[0].count if dashboard_stats.genre_stats else 0 %}
           {% set year_max = dashboard_stats.year_stats[0].count if dashboard_stats.year_stats else 0 %}

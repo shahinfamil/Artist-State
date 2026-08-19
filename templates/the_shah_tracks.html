@@ -3,9 +3,8 @@
 {% block content %}
 <section class="album-hero">
   <div class="container">
-    <p class="eyebrow"><a href="{{ url_for('home') }}">{{ artist.name }}</a></p>
-    <h1>The Shah</h1>
-    <p class="muted">آهنگ‌هایی که با برند The Shah منتشر شده‌اند</p>
+    <h1>د شاه</h1>
+    <p class="muted">آهنگ‌هایی که با نام هنری The Shah منتشر شده‌اند.</p>
   </div>
 </section>
 
@@ -20,9 +19,23 @@
         </div>
         <span class="track-info">
           <span class="track-title-row">
-            <span class="track-title">{{ track.title }}</span>
+            <span class="track-title left">{{ track.title }}</span>
           </span>
-          <span class="track-album">{{ track.album.title }} · {{ track.display_artist_name }}{% if track.release_date %} · {{ track.release_date|format_date_short }}{% endif %}</span>
+          {% if track.album and track.album.release_type == 'album' %}
+            {% set feature_names = track.collaborator_names %}
+            {% if feature_names %}
+              <span class="track-album">{{ track.album.title }} | Feat: {{ feature_names|join(', ') }} | {{ track.release_date|format_date_short }}</span>
+            {% else %}
+              <span class="track-album">{{ track.album.title }} | {{ track.release_date|format_date_short }}</span>
+            {% endif %}
+          {% else %}
+            {% set feature_names = track.collaborator_names %}
+            {% if feature_names %}
+              <span class="track-album">Single | Feat: {{ feature_names|join(', ') }} | {{ track.release_date|format_date_short }}</span>
+            {% else %}
+              <span class="track-album">Single | {{ track.display_artist_name }} | {{ track.release_date|format_date_short }}</span>
+            {% endif %}
+          {% endif %}
         </span>
         <span class="track-rank">{{ tracks|length - loop.index + 1 }}</span>
       </a>

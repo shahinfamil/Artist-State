@@ -199,6 +199,10 @@
       const selectedTab = document.getElementById(`tab-${tabName}`);
       if (selectedTab) {
         selectedTab.classList.add("active");
+        window.dispatchEvent(new CustomEvent('track-album-ticker-refresh'));
+        setTimeout(function () {
+          window.dispatchEvent(new CustomEvent('track-album-ticker-refresh'));
+        }, 80);
         // Reset pagination to page 1
         showPage(tabName, 0);
       }

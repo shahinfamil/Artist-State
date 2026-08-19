@@ -37,5 +37,5 @@ tests/
 staticfiles/
 
 # README and other docs
-*.md
+README.md
 

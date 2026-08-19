@@ -22,9 +22,75 @@
       <label>عنوان ترک *
         <input type="text" name="title" value="{{ track.title if track else '' }}" required>
       </label>
+      <label>ریمیکس است؟
+        <select name="work_type" id="work-type-select">
+          <option value="original" {% if not track or track.work_type == 'original' %}selected{% endif %}>خیر</option>
+          <option value="remix" {% if track and track.work_type == 'remix' %}selected{% endif %}>بله</option>
+        </select>
+      </label>
+      </div>
+      <div class="form-grid-2">
        <label>همکاری (اختیاری - در صورت وجود همکاری)
         <input type="text" name="featuring" value="{{ track.featuring if track else '' }}">
       </label>
+      <div id="remix-of-wrapper" {% if not track or track.work_type != 'remix' %}style="display:none;"{% endif %}>
+        <label>ریمیکس کدام ترک است ؟</label>
+        <div class="remix-track-picker">
+          <input
+            type="text"
+            id="remix-track-search"
+            name="remix_of_track_title"
+            class="modern-input"
+            placeholder="نام ترک را جستجو کنید..."
+            value="{{ track.remix_source.title if track and track.remix_source else '' }}"
+            autocomplete="off">
+          <button type="button" id="remix-toggle-btn" class="remix-toggle-icon" aria-label="باز/بستن لیست ریمیکس">▾</button>
+          <input type="hidden" id="remix_of_track_id" name="remix_of_track_id" value="{{ track.remix_of_track_id if track and track.remix_of_track_id else '' }}">
+          <div id="remix-track-results" class="remix-track-results" aria-expanded="false">
+            {% set remix_candidates = all_tracks or [] %}
+            {% for candidate in remix_candidates %}
+              {% if not track or candidate.id != track.id %}
+              <button type="button" class="remix-result-item" data-id="{{ candidate.id }}" data-title="{{ candidate.title }}" data-lyricist="{{ candidate.lyricist|e }}" data-lyrics="{{ candidate.lyrics|e }}">{{ candidate.title }}</button>
+              {% endif %}
+            {% endfor %}
+            <div id="remix-empty-state" class="remix-empty-state" style="display:none;">هیچ نتیجه‌ای یافت نشد.</div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="form-grid-2">
+        <div id="lyricist-panel" class="lyricist-panel" {% if track and track.work_type == 'remix' %}style="display:none;"{% endif %}>
+          <div class="field-header">
+            <label>نام ترانه‌سرا</label>
+            <span class="field-tag">چندتایی</span>
+          </div>
+
+          <div class="lyricist-checklist" id="lyricist-checklist">
+            {% for known_lyricist in lyricist_options %}
+            <label class="lyricist-checkbox-item">
+              <input type="checkbox" name="lyricist" value="{{ known_lyricist }}" {% if track and known_lyricist in track.lyricist_names %}checked{% endif %}>
+              <span>{{ known_lyricist }}</span>
+            </label>
+            {% endfor %}
+          </div>
+
+          <div id="lyricist-new-wrapper" class="lyricist-new-input-wrap">
+            <div class="lyricist-new-row">
+              <input id="new-lyricist-input" type="text" name="new_lyricist" value="" placeholder="نام ترانه‌سرا جدید" class="modern-input font-fa">
+              <button type="button" id="add-lyricist-btn" class="btn btn-secondary">اضافه کردن</button>
+            </div>
+          </div>
+          <small class="field-hint">نام‌ها را با تیک انتخاب کنید، یا برای افزودن نام جدید از دکمه اضافه کردن استفاده کنید.</small>
+        </div>
+        <div id="lyrics-panel" class="lyrics-panel" {% if track and track.work_type == 'remix' %}style="display:none;"{% endif %}>
+          <div class="field-header">
+            <label for="lyrics-input">متن ترانه</label>
+            <span id="lyrics-status-badge" class="field-tag field-tag--muted">غیرفعال</span>
+          </div>
+          <textarea id="lyrics-input" name="lyrics" rows="7" class="modern-textarea" placeholder="متن کامل ترانه را اینجا وارد کنید" {% if not (track and track.lyricist_names) %}disabled{% endif %}>{{ track.lyrics if track else '' }}</textarea>
+          <small class="field-hint">اگر هیچ ترانه‌سرا انتخاب نشود، متن ترانه غیرفعال می‌شود.</small>
+        </div>
+        
       </div>
       
       <div class="form-grid-2">

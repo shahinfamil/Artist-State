@@ -18,7 +18,7 @@ from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import inspect, text
 
-from models import db, Artist, ArtistWikipediaData, Album, Track, ViewStat, User
+from models import db, Artist, ArtistWikipediaData, Album, Track, ViewStat, User, Lyricist
 from spotify_scraper import SpotifyClient
 from scraper import get_youtube_views, get_soundcloud_plays
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1039,19 +1039,50 @@ def combine_youtube_view_counts(counts):
     return total
 
 
+def cleanup_old_view_stats(track_id=None):
+    """همه رکوردهای قدیمی ViewStat را حذف می‌کند و فقط داده‌های امروز را نگه می‌دارد."""
+    today_start = datetime.combine(datetime.now().date(), datetime.min.time())
+    query = ViewStat.query.filter(ViewStat.fetched_at < today_start)
+    if track_id is not None:
+        query = query.filter_by(track_id=track_id)
+    query.delete(synchronize_session=False)
+    db.session.commit()
+
+
+def get_previous_platform_views(track, platform):
+    """آخرین مقدار معتبر برای این پلتفرم را برمی‌گرداند تا در صورت خطای امروز از آن استفاده شود."""
+    stat = (
+        ViewStat.query.filter_by(track_id=track.id, platform=platform)
+        .order_by(ViewStat.fetched_at.desc())
+        .first()
+    )
+    if stat is None:
+        return None
+    try:
+        return int(stat.views)
+    except (TypeError, ValueError):
+        return None
+
+
 def update_track_views(track, platform):
     """آمار یک پلتفرم را برای یک ترک خاص به‌روزرسانی می‌کند."""
+    previous_views = get_previous_platform_views(track, platform)
+
     if platform == "youtube":
         youtube_links = [track.youtube_url, getattr(track, "youtube_url_secondary", None)]
         youtube_views = [get_youtube_views(link) for link in youtube_links if link]
         views = combine_youtube_view_counts(youtube_views)
         if views is None or views <= 0:
-            return False
+            if previous_views is None:
+                return False
+            views = previous_views
         db.session.add(ViewStat(track_id=track.id, platform="youtube", views=views))
     elif platform == "soundcloud":
         views = get_soundcloud_plays(track.soundcloud_url)
         if views is None or views <= 0:
-            return False
+            if previous_views is None:
+                return False
+            views = previous_views
         db.session.add(ViewStat(track_id=track.id, platform="soundcloud", views=views))
     elif platform == "spotify":
         with SpotifyClient() as client:
@@ -1062,12 +1093,15 @@ def update_track_views(track, platform):
             views = None
 
         if views is None or views <= 0:
-            return False
+            if previous_views is None:
+                return False
+            views = previous_views
         db.session.add(ViewStat(track_id=track.id, platform="spotify", views=views))
     else:
         return False
 
     db.session.commit()
+    cleanup_old_view_stats(track_id=track.id)
     return True
 
 
@@ -1179,6 +1213,16 @@ def ensure_track_columns(app):
             missing_columns.append("ALTER TABLE track ADD COLUMN youtube_url_is_music_video BOOLEAN DEFAULT 0")
         if "youtube_url_secondary_is_music_video" not in existing:
             missing_columns.append("ALTER TABLE track ADD COLUMN youtube_url_secondary_is_music_video BOOLEAN DEFAULT 0")
+        if "lyricist" not in existing:
+            missing_columns.append("ALTER TABLE track ADD COLUMN lyricist VARCHAR(200)")
+        if "lyrics" not in existing:
+            missing_columns.append("ALTER TABLE track ADD COLUMN lyrics TEXT")
+        if "work_type" not in existing:
+            missing_columns.append("ALTER TABLE track ADD COLUMN work_type VARCHAR(30) DEFAULT 'original'")
+        if "remix_of" not in existing:
+            missing_columns.append("ALTER TABLE track ADD COLUMN remix_of VARCHAR(200)")
+        if "remix_of_track_id" not in existing:
+            missing_columns.append("ALTER TABLE track ADD COLUMN remix_of_track_id INTEGER")
         if "is_the_shah" not in existing:
             missing_columns.append("ALTER TABLE track ADD COLUMN is_the_shah BOOLEAN DEFAULT 0")
         for sql in missing_columns:
@@ -1364,25 +1408,25 @@ def slugify_text(value):
 def get_release_label(track):
     album = getattr(track, "album", None)
     if not album:
-        return "تک‌آهنگ"
+        return "Single"
 
     release_type = getattr(album, "release_type", None)
     if release_type == "single":
-        return "single"
+        return "Single"
     if release_type == "ep":
-        return "ep"
+        return "EP"
     if release_type == "album":
-        return "album"
+        return "Album"
 
     if getattr(album, "title", None):
         track_count = len(getattr(album, "tracks", []) or [])
         if track_count <= 1:
-            return "single"
+            return "Single"
         if track_count <= 4:
-            return "ep"
-        return "album"
+            return "EP"
+        return "Album"
 
-    return "تک‌آهنگ"
+    return "Single"
 
 
 def clean_wikipedia_text(text):
@@ -2071,11 +2115,80 @@ def register_routes(app):
         if slug and slug != expected_slug:
             return redirect(url_for("track_detail", track_id=track.id, slug=expected_slug), code=301)
 
+        # collect remixes that reference this track as their remix source
+        remixes = (
+            Track.query.filter_by(remix_of_track_id=track.id)
+            .filter(Track.is_active == True)
+            .order_by(Track.release_date.desc())
+            .all()
+        )
+
         return render_template(
             "track.html", track=track, history=history,
             history_json=history_json,
-            artist=track.album.artist, is_premium=is_premium
+            artist=track.album.artist, is_premium=is_premium,
+            remixes=remixes,
         )
+
+
+    @app.route('/collaborations/<path:person_name>')
+    def collaborations(person_name):
+        # person_name comes URL-decoded from Flask; it may contain spaces
+        person = person_name.strip()
+        artist = Artist.query.first()
+
+        # find tracks where the featuring field mentions this person
+        tracks = (
+            Track.query.filter(Track.featuring != None)
+            .filter(Track.featuring.ilike(f"%{person}%"))
+            .filter(Track.is_active == True)
+            .order_by(Track.release_date.desc())
+            .all()
+        )
+
+        return render_template('collaborations.html', person=person, tracks=tracks, artist=artist)
+
+
+    @app.route('/lyricist/<path:person_name>')
+    def lyricist_page(person_name):
+        person = person_name.strip()
+        artist = Artist.query.first()
+
+        # try to find a Lyricist record first (case-insensitive)
+        lyricist = Lyricist.query.filter(Lyricist.name.ilike(person)).first()
+        tracks = []
+        if lyricist:
+            # lyricist.tracks is a dynamic relationship; filter active and order
+            tracks = (
+                lyricist.tracks.filter(Track.is_active == True)
+                .order_by(Track.release_date.desc())
+                .all()
+            )
+            # include tracks that have legacy lyricist string mentioning this name
+            extra = (
+                Track.query.filter(Track.lyricist != None)
+                .filter(Track.lyricist.ilike(f"%{person}%"))
+                .filter(Track.is_active == True)
+                .order_by(Track.release_date.desc())
+                .all()
+            )
+            # merge while preserving uniqueness
+            ids = {t.id for t in tracks}
+            for t in extra:
+                if t.id not in ids:
+                    tracks.append(t)
+                    ids.add(t.id)
+        else:
+            # fallback: search legacy lyricist string
+            tracks = (
+                Track.query.filter(Track.lyricist != None)
+                .filter(Track.lyricist.ilike(f"%{person}%"))
+                .filter(Track.is_active == True)
+                .order_by(Track.release_date.desc())
+                .all()
+            )
+
+        return render_template('lyricist.html', person=person, tracks=tracks, artist=artist)
 
     def get_current_user():
         uid = session.get('user_id')

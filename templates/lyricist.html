@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="album-hero">
+  <div class="container">
+    <h1>آثار نوشته‌شده توسط "{{ person }}"</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">ترانه‌سرا</p>
+      <h2>ترک‌هایی که "{{ person }}" نوشته</h2>
+      <p class="muted">تعداد: {{ tracks|length }}</p>
+    </div>
+
+    {% if tracks and tracks|length > 0 %}
+    <div class="album-grid">
+      {% for t in tracks %}
+      <a href="{{ url_for('track_detail', track_id=t.id, slug=slugify_text(t.title)) }}" class="album-card">
+        <div class="album-cover-wrap">
+          <img src="{{ t.cover_url }}" alt="{{ t.title }}">
+          <span class="play-overlay">مشاهده</span>
+        </div>
+        <h3>{{ t.title }}</h3>
+        <p class="muted">{{ t.display_artist_name }}{% if t.release_year %} · {{ t.release_year }}{% endif %}</p>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">هنوز اثری از این ترانه‌سرا در سایت ثبت نشده.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

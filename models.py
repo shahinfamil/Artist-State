@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 
@@ -107,6 +109,38 @@ class Album(db.Model):
         return False
 
 
+track_lyricist = db.Table(
+    "track_lyricist",
+    db.Column("track_id", db.Integer, db.ForeignKey("track.id"), primary_key=True),
+    db.Column("lyricist_id", db.Integer, db.ForeignKey("lyricist.id"), primary_key=True),
+)
+
+
+class Lyricist(db.Model):
+    __tablename__ = "lyricist"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    @property
+    def track_count(self):
+        return self.tracks.count() if hasattr(self.tracks, "count") else len(self.tracks)
+
+    def __repr__(self):
+        return f"<Lyricist {self.name}>"
+
+
+def get_lyricist_track_counts():
+    return (
+        db.session.query(Lyricist.name, db.func.count(track_lyricist.c.track_id).label("track_count"))
+        .outerjoin(track_lyricist, track_lyricist.c.lyricist_id == Lyricist.id)
+        .group_by(Lyricist.id, Lyricist.name)
+        .order_by(Lyricist.name.asc())
+        .all()
+    )
+
+
 class Track(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -116,9 +150,26 @@ class Track(db.Model):
     duration = db.Column(db.String(20))  # مثلا "3:45"
     release_date = db.Column(db.Date)  # تاریخ دقیق انتشار آهنگ
     artist_name = db.Column(db.String(200))
+    lyricist = db.Column(db.String(200))  # legacy single-name support
+    lyrics = db.Column(db.Text)
+    work_type = db.Column(db.String(30), default="original", nullable=False)
+    remix_of = db.Column(db.String(200))
+    remix_of_track_id = db.Column(db.Integer, db.ForeignKey("track.id"), nullable=True)
     is_the_shah = db.Column(db.Boolean, default=False, nullable=False)
     album_id = db.Column(db.Integer, db.ForeignKey("album.id"), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    lyricists = db.relationship(
+        "Lyricist",
+        secondary=track_lyricist,
+        backref=db.backref("tracks", lazy="dynamic"),
+        lazy="subquery",
+    )
+    remix_source = db.relationship(
+        "Track",
+        foreign_keys=[remix_of_track_id],
+        remote_side="Track.id",
+        post_update=True,
+    )
 
     @property
     def display_artist_name(self):
@@ -134,6 +185,76 @@ class Track(db.Model):
             return track_artist_name
 
         return "شاهین نجفی"
+
+    @staticmethod
+    def _normalize_name(value):
+        if value is None:
+            return ""
+        text = unicodedata.normalize("NFKC", str(value)).strip()
+        text = text.replace("ـ", "")
+        text = re.sub(r"[\-_/|]+", " ", text)
+        text = text.replace("،", ",").replace(";", ",")
+        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r"\b(?:feat|ft|featuring|with)\b.*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*,\s*", ",", text)
+        text = text.strip(" ,;")
+        return text.lower()
+
+    @property
+    def collaborator_names(self):
+        names = []
+        seen = set()
+        own_names = {
+            "the shah",
+            "theshah",
+            "dshah",
+            "دشاه",
+            "د شاه",
+            "د-شاه",
+            "شاه",
+            "shah",
+            "شاهین نجفی",
+            "شاهين نجفی",
+            "shahin najafi",
+            "شاهین",
+            "shahin",
+        }
+
+        raw_names = []
+        if self.featuring and self.featuring.strip():
+            raw_names.extend(
+                part.strip()
+                for part in re.split(r"[,;|\n]+", self.featuring)
+                if part.strip()
+            )
+
+        if not raw_names and self.artist_name and self.artist_name.strip():
+            raw_names = [self.artist_name.strip()]
+
+        for raw in raw_names:
+            clean_name = " ".join(raw.split())
+            if not clean_name:
+                continue
+
+            normalized = self._normalize_name(clean_name)
+            if not normalized:
+                continue
+
+            if normalized in own_names:
+                continue
+
+            if normalized == self._normalize_name(self.display_artist_name):
+                continue
+
+            if normalized in {self._normalize_name(name) for name in own_names}: 
+                continue
+
+            display = re.sub(r"\s+", " ", clean_name).strip()
+            if display not in seen:
+                seen.add(display)
+                names.append(display)
+
+        return names
 
     # لینک هرکدوم به صفحه واقعی اون پلتفرم برای اسکرپ کردن
     spotify_url = db.Column(db.String(500))
@@ -169,10 +290,43 @@ class Track(db.Model):
             return self.youtube_url_secondary
         return None
 
+    @property
+    def is_remix(self):
+        return (self.work_type or "original").strip().lower() == "remix"
+
+    @property
+    def remix_display_name(self):
+        if self.remix_source and self.remix_source.title:
+            return self.remix_source.title
+        if self.remix_of:
+            return self.remix_of
+        return None
+
+    @property
+    def work_type_label(self):
+        kind = (self.work_type or "original").strip().lower()
+        labels = {
+            "original": "کار اصلی",
+            "remix": "ریمیکس",
+            "other": "کار دیگر",
+        }
+        return labels.get(kind, "کار اصلی")
+
+    @property
+    def lyricist_names(self):
+        names = [lyricist.name for lyricist in sorted(self.lyricists, key=lambda item: item.name.lower())]
+        legacy_names = [part.strip() for part in (self.lyricist or "").split(",") if part.strip()]
+        if legacy_names:
+            names.extend(legacy_names)
+        return list(dict.fromkeys(name for name in names if name))
+
+    @property
+    def lyricist_display(self):
+        return ", ".join(self.lyricist_names)
+
     def total_views(self):
         latest = self.latest_stats()
         return sum(v for v in latest.values() if v)
-
 
 
 class ViewStat(db.Model):

@@ -6,7 +6,7 @@
 <title>{% block title %}{{ artist.name if artist else "آرتیست" }}{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Estedad:wght@500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260625">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260817">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css">
 </head>
 <body>
@@ -151,6 +151,8 @@
 
 <script src="{{ url_for('static', filename='js/auto-font.js') }}"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/track-album-ticker.js') }}?v=20260818"></script>
+<script src="{{ url_for('static', filename='js/track-title-ticker.js') }}?v=20260818"></script>
 
 </body>
 </html>

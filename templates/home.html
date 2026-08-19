@@ -111,12 +111,12 @@
   <div class="container">
     <div class="section-head">
       <h2 class="eyebrow">
-        <a href="{{ url_for('top_tracks_list') }}" class="view-all">
-        پرطرفدارترین آهنگ‌ها
-        </a>
         <i class="icon ri-bar-chart-fill" aria-hidden="true"></i>
+        <a href="{{ url_for('top_tracks_list') }}" class="view-all view-all--headline" aria-label="مشاهدهٔ فهرست کامل پرطرفدارترین آهنگ‌ها">
+          <span class="view-all-title">پرطرفدارترین آهنگ‌ها</span>
+          <span class="view-all-note">کلیک کنید برای دیدن فهرست کامل</span>
+        </a>
       </h2>
-
     </div>
 
     <div class="track-list">
@@ -130,6 +130,10 @@
           {% if track.is_the_shah %}
           <span class="cover-badge" aria-label="The Shah">
             <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+          </span>
+          {% elif track.is_remix %}
+          <span class="cover-badge cover-badge--accent" aria-label="ریمیکس">
+            <i class="icon ri-repeat-2-fill" aria-hidden="true"></i>
           </span>
           {% endif %}
         </div>
@@ -162,10 +166,11 @@
   <div class="container">
     <div class="section-head">
       <h2 class="eyebrow">
-        <a href="{{ url_for('albums_list') }}">
-        دیسکوگرافی
-        </a>
         <i class="icon ri-disc-line" aria-hidden="true"></i>
+        <a href="{{ url_for('albums_list') }}" class="view-all view-all--headline" aria-label="مشاهدهٔ فهرست کامل دیسکوگرافی آهنگ‌ها">
+          <span class="view-all-title">دیسکوگرافی</span>
+          <span class="view-all-note">کلیک کنید برای دیدن فهرست کامل</span>
+        </a>
       </h2>
     </div>
 
@@ -277,13 +282,15 @@
 
 <section class="section" id="styles">
   <div class="container">
-    <div class="section-head">
-        <a href="{{ url_for('genres_list') }}">
-        <h2 class="eyebrow">
-        <i class="icon ri-music-2-fill" aria-hidden="true"></i> سبک‌ها</h2>
+     <div class="section-head">
+      <h2 class="eyebrow">
+        <i class="icon ri-music-2-fill" aria-hidden="true"></i>
+        <a href="{{ url_for('genres_list') }}" class="view-all view-all--headline" aria-label="مشاهدهٔ فهرست کامل سبک‌ آهنگ‌ها">
+          <span class="view-all-title">سبک‌ها</span>
+          <span class="view-all-note">کلیک کنید برای دیدن فهرست کامل</span>
         </a>
+      </h2>
     </div>
-
     <div class="genre-grid">
       {% for style_name, tracks in styles %}
       <a href="{{ url_for('genre_detail', genre_name=style_name) }}" class="genre-card">
@@ -305,12 +312,13 @@
 <section class="section section-alt" id="calendar">
   <div class="container">
     <div class="section-head">
-    <a href="{{ url_for('release_calendar_page') }}">
       <h2 class="eyebrow">
         <i class="icon ri-calendar-event-fill" aria-hidden="true"></i>
-        تقویم انتشار
+        <a href="{{ url_for('release_calendar_page') }}" class="view-all view-all--headline" aria-label="مشاهدهٔ فهرست کامل تقویم انتشار">
+          <span class="view-all-title">تقویم انتشار</span>
+          <span class="view-all-note">کلیک کنید برای دیدن فهرست کامل</span>
+        </a>
       </h2>
-    </a>
     </div>
 
     {% if release_calendar %}
@@ -384,9 +392,6 @@
         </div>
       </article>
       {% endfor %}
-    </div>
-    <div class="section-head" style="margin-top: 24px; margin-bottom: 0;">
-      <a href="{{ url_for('release_calendar_page') }}" class="view-all">مشاهده‌ی کامل تقویم</a>
     </div>
     <script src="{{ url_for('static', filename='js/home-page.js') }}"></script>
     {% else %}

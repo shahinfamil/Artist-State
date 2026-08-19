@@ -1,30 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
 {% set stats = track.latest_stats() %}
-<section class="track-hero">
+<section class="track-hero track-hero--cover" style="background-image: linear-gradient(180deg, rgba(6,8,10,0.66), rgba(6,8,10,0.56)), url('{{ track.cover_url }}');">
   <div class="container track-hero-inner">
     <div class="track-hero-media">
       <img src="{{ track.cover_url }}" class="track-hero-cover" alt="{{ track.title }}">
-      <div class="track-hero-title-row">
-        <h2 class="track-hero-title">{{ track.title }}</h2>
-      </div>
+        <div class="track-cover-caption">
+          {% set release_kind = release_label(track) %}
+          {% set release_kind_label = 'Single' if release_kind == 'Single' else 'EP' if release_kind == 'EP' else 'Album' if release_kind == 'Album' else 'Single' %}
+        </div>
     </div>
     <div class="track-hero-copy">
-      {% set release_kind = release_label(track) %}
-      {% set release_kind_label = 'Single' if release_kind == 'Single' else 'EP' if release_kind == 'EP' else 'Album' if release_kind == 'Album' else 'Single' %}
       <div class="track-meta-list">
-        <a class="track-meta-pill track-meta-pill--link" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) }}">
-          <i class="icon ri-disc-line" aria-hidden="true"></i>
-          <span>{% if track.album %}{{ release_kind_label }} | {{ track.album.title }}{% else %}{{ release_kind_label }}{% endif %}</span>
-        </a>
+          {% if release_kind == 'Album' and track.album %}
+            <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) }}">{{ release_kind_label }} | {{ track.album.title }}</a>
+          {% else %}
+            <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) }}">{{ release_kind_label }}</a>
+          {% endif %}
         <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('the_shah_tracks') if track.is_the_shah else url_for('shahin_najafi_tracks') }}">
-          <i class="icon ri-user-star-line" aria-hidden="true"></i>
           <span>{{ track.display_artist_name }}</span>
+          <i class="icon ri-user-star-line" aria-hidden="true"></i>
         </a>
-        {% if track.featuring %}
-        <div class="track-meta-pill">
+        {% set feature_list = track.collaborator_names %}
+        {% if feature_list %}
+        <div class="track-meta-pill track-meta-pill--link">
           <i class="icon ri-group-line" aria-hidden="true"></i>
-          <span>{{ track.featuring }}</span>
+          <span class="feature-list">
+            {% for name in feature_list %}
+              {% if name %}
+                <span class="feature-item"><a class="feature-link" href="{{ url_for('collaborations', person_name=name) }}">{{ name }}</a></span>
+              {% endif %}
+            {% endfor %}
+          </span>
         </div>
         {% endif %}
 
@@ -34,12 +41,14 @@
         {% set genre_name = genre_item.strip() %}
         {% if genre_name %}
         <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('genre_detail', genre_name=genre_name) }}">
-          <i class="icon ri-price-tag-3-line" aria-hidden="true"></i>
+          <i class="icon ri-headphone-line" aria-hidden="true"></i>
           <span>{{ genre_name }}</span>
         </a>
         {% endif %}
         {% endfor %}
         {% endif %}
+      </div>
+      <div class="track-meta-bottom">
         {% if track.release_date %}
         <div class="track-meta-pill">
           <i class="icon ri-calendar-event-line" aria-hidden="true"></i>
@@ -67,9 +76,70 @@
           <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
         </a>
       </div>
+      {% if track.is_remix and track.remix_source %}
+      <div class="remix-source-wrapper">
+        <a class="remix-source-card" href="{{ url_for('track_detail', track_id=track.remix_source.id, slug=slugify_text(track.remix_source.title)) }}">
+          <img class="remix-source-cover" src="{{ track.remix_source.cover_url }}" alt="{{ track.remix_source.title }}">
+          <div class="remix-source-info">
+            <div class="remix-source-badge">Original Track</div>
+            <div class="remix-source-title">{{ track.remix_source.title }}</div>
+            {% if track.remix_source.lyricist_display %}
+            <div class="remix-source-lyricist date-display"> {{ track.remix_source.release_date|format_date_short }}</div>
+            {% endif %}
+          </div>
+        </a>
+      </div>
+      {% endif %}
     </div>
   </div>
 </section>
+
+{% if remixes and remixes|length > 0 %}
+<section class="section section-remixes">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">ریمیکس‌ها</p>
+      <h2>ریمیکس‌های ساخته‌شده از این ترک</h2>
+    </div>
+    <div class="remix-list">
+      {% for r in remixes %}
+      <a class="remix-card" href="{{ url_for('track_detail', track_id=r.id, slug=slugify_text(r.title)) }}">
+        <img class="remix-card-cover" src="{{ r.cover_url }}" alt="{{ r.title }}">
+        <div class="remix-card-info">
+          <div class="remix-card-title">{{ r.title }}</div>
+          <div class="remix-card-artist muted">{{ r.display_artist_name }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% set lyric_source = track.remix_source if track.is_remix and track.remix_source else track %}
+{% if lyric_source.lyricist_display or lyric_source.lyrics %}
+<section class="section section-lyrics">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">ترانه</p>
+      <h2>متن ترانه</h2>
+    </div>
+    <div class="history-panel">
+      {% if lyric_source.lyricist_display %}
+      <p class="muted track-lyricist-label"><strong>ترانه‌سرا:</strong>
+        {% set _names = lyric_source.lyricist_names %}
+        {% for name in _names %}
+          <a class="muted" href="{{ url_for('lyricist_page', person_name=name) }}">{{ name }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </p>
+      {% endif %}
+      {% if lyric_source.lyrics %}
+      <pre class="track-lyrics-text">{{ lyric_source.lyrics }}</pre>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {% if track.music_video_url or track.spotify_url or track.soundcloud_url or track.youtube_url or track.youtube_url_secondary %}
 {% set has_music_video = track.music_video_url is not none %}
@@ -82,7 +152,6 @@
     <div class="section-head">
       <p class="eyebrow">پخش رسانه</p>
       <h2>ویدیو و ترک را در پلیر سایت پخش کن</h2>
-      <p class="history-subtitle">از تب‌های بالا انتخاب کن: یوتیوب، اسپاتیفای یا ساندکلود. همه پلیرها در همین صفحه پخش می‌شوند.</p>
     </div>
     <div class="video-tabs">
       <div class="video-tabs-nav">
@@ -206,6 +275,7 @@
 
 <script>window.TRACK_HISTORY = {{ history_json|safe }};</script>
 <script src="{{ url_for('static', filename='js/track-page.js') }}"></script>
+<script src="{{ url_for('static', filename='js/track-title-ticker.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.11/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy.css" />

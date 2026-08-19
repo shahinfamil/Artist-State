@@ -20,7 +20,7 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from models import db, Artist, ArtistWikipediaData, Album, Track, User, ViewStat, SiteMedia
+from models import db, Artist, ArtistWikipediaData, Album, Track, User, ViewStat, SiteMedia, Lyricist
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -338,7 +338,14 @@ def redirect_to_content_section():
 
 def get_admin_dashboard_base_context():
     artist = Artist.query.first()
-    albums = Album.query.order_by(Album.release_year.desc()).all() if artist else []
+    if artist:
+        albums = (
+            Album.query
+            .order_by(Album.release_date.isnot(None).desc(), Album.release_date.desc(), Album.release_year.desc(), Album.id.desc())
+            .all()
+        )
+    else:
+        albums = []
     for album in albums:
         album.tracks = sorted(album.tracks, key=lambda track: (track.sort_order, track.title.lower(), track.id))
     users = User.query.order_by(User.created_at.desc()).all()
@@ -470,6 +477,19 @@ def build_analytics_context():
 
 
 def build_dashboard_stats(tracks):
+    lyricist_stats = []
+    try:
+        # یک ترک می‌تواند چند ترانه‌سرا داشته باشد؛ در این حالت هر نفر به‌صورت اشتراکی
+        # برای همان ترک اعتبار می‌گیرد، اما متن ترانه و آهنگ‌ها به‌صورت یک‌دسته مشترک نگه داشته می‌شوند.
+        lyricist_stats = [
+            {"name": name, "count": int(count or 0)}
+            for name, count in get_lyricist_track_counts()
+        ]
+    except Exception:
+        lyricist_stats = []
+
+    lyricist_stats = sorted(lyricist_stats, key=lambda item: (-item["count"], item["name"]))
+
     genre_map = {}
     platform_counts = {"spotify": 0, "youtube": 0, "soundcloud": 0}
     music_video_tracks = 0
@@ -645,6 +665,7 @@ def build_dashboard_stats(tracks):
         "year_stats": year_stats,
         "platform_stats": platform_stats,
         "release_type_stats": release_type_stats,
+        "lyricist_stats": lyricist_stats,
         "music_video_stats": {
             "has_mv": music_video_tracks,
             "no_mv": total_tracks - music_video_tracks,
@@ -811,6 +832,20 @@ def dashboard():
         eps=grouped_albums["eps"],
         full_albums=grouped_albums["full_albums"],
     )
+
+
+@admin_bp.route("/view-history/cleanup", methods=["POST"])
+@login_required
+def cleanup_all_view_history():
+    today_start = datetime.combine(datetime.now().date(), datetime.min.time())
+    deleted_count = ViewStat.query.filter(ViewStat.fetched_at < today_start).delete(synchronize_session=False)
+    db.session.commit()
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({"success": True, "deleted_count": deleted_count})
+
+    flash(f"تاریخچه قدیمی حذف شد: {deleted_count} رکورد", "success")
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.route("/analytics")
@@ -1288,15 +1323,57 @@ def album_delete(album_id):
 @login_required
 def track_new(album_id):
     album = Album.query.get_or_404(album_id)
+    all_tracks = Track.query.order_by(Track.title.asc()).all()
+    lyricist_options = [
+        item[0] for item in db.session.query(Lyricist.name)
+        .order_by(Lyricist.name.asc())
+        .all()
+    ]
     if request.method == "POST":
         cover_file_url = save_image_file(request.files.get("cover_file"))
         release_date = parse_release_date(request.form)
         if release_date is None:
             release_date = album.release_date
 
+        selected_lyricists = request.form.getlist("lyricist")
+        custom_lyricist_names = [name.strip() for name in request.form.get("new_lyricist", "").split(",") if name.strip()]
+        lyricist_names = []
+        for value in selected_lyricists:
+            if value == "__new__":
+                lyricist_names.extend(custom_lyricist_names)
+            elif value == "__none__":
+                continue
+            elif value:
+                lyricist_names.append(value.strip())
+        lyricist_names = list(dict.fromkeys(name for name in lyricist_names if name))
+
+        work_type = (request.form.get("work_type") or "original").strip().lower()
+        if work_type not in {"original", "remix", "other"}:
+            work_type = "original"
+
+        remix_source_id_str = (request.form.get("remix_of_track_id") or "").strip()
+        remix_source = None
+        if remix_source_id_str:
+            try:
+                remix_source = Track.query.filter_by(id=int(remix_source_id_str)).first()
+            except (TypeError, ValueError):
+                remix_source = None
+
+        if remix_source is None and work_type == "remix":
+            typed_title = (request.form.get("remix_of_track_title") or "").strip()
+            if typed_title:
+                remix_source = Track.query.filter(db.func.lower(Track.title).like(f"%{typed_title.lower()}%")) .order_by(Track.title.asc()).first()
+
+        remix_source_title = remix_source.title if remix_source else ""
+
         track = Track(
             title=request.form.get("title", "").strip(),
             featuring=request.form.get("featuring", "").strip(),
+            lyricist=", ".join(lyricist_names) if lyricist_names else "",
+            lyrics=request.form.get("lyrics", "").strip() if lyricist_names else "",
+            work_type=work_type,
+            remix_of=remix_source_title if work_type == "remix" else "",
+            remix_of_track_id=remix_source.id if remix_source and work_type == "remix" else None,
             is_the_shah=bool(request.form.get("is_the_shah")),
             cover_url=cover_file_url or request.form.get("cover_url", "").strip() or album.cover_url,
             duration=request.form.get("duration", "").strip(),
@@ -1311,19 +1388,47 @@ def track_new(album_id):
             genre=request.form.get("genre", "").strip(),
         )
         db.session.add(track)
+        db.session.flush()
+
+        for lyricist_name in lyricist_names:
+            lyricist = Lyricist.query.filter_by(name=lyricist_name).first()
+            if lyricist is None:
+                lyricist = Lyricist(name=lyricist_name)
+                db.session.add(lyricist)
+                db.session.flush()
+            track.lyricists.append(lyricist)
+
+        # If this track is a remix and a remix source was selected,
+        # copy lyricist string, lyrics text, and relationships from the source track.
+        if work_type == 'remix' and remix_source:
+            try:
+                track.lyricist = remix_source.lyricist or ''
+                track.lyrics = remix_source.lyrics or ''
+                track.lyricists = []
+                for src_lyr in remix_source.lyricists:
+                    track.lyricists.append(src_lyr)
+            except Exception:
+                pass
+
         db.session.commit()
         album.update_release_type()
         db.session.commit()
         flash("آهنگ با موفقیت اضافه شد.", "success")
         return redirect_back("admin.dashboard")
 
-    return render_template("admin/track_form.html", track=None, album=album, suggested_genres=SUGGESTED_GENRES)
+    return render_template("admin/track_form.html", track=None, album=album, all_tracks=all_tracks, suggested_genres=SUGGESTED_GENRES, lyricist_options=lyricist_options)
 
 
 @admin_bp.route("/track/<int:track_id>/edit", methods=["GET", "POST"])
 @login_required
 def track_edit(track_id):
     track = Track.query.get_or_404(track_id)
+    all_tracks = Track.query.order_by(Track.title.asc()).all()
+    lyricist_options = [
+        item[0] for item in db.session.query(Lyricist.name)
+        .order_by(Lyricist.name.asc())
+        .all()
+    ]
     if request.method == "POST":
         cover_file_url = save_image_file(request.files.get("cover_file"))
 
@@ -1331,8 +1436,42 @@ def track_edit(track_id):
         if release_date is None:
             release_date = track.album.release_date
 
+        selected_lyricists = request.form.getlist("lyricist")
+        custom_lyricist_names = [name.strip() for name in request.form.get("new_lyricist", "").split(",") if name.strip()]
+        lyricist_names = []
+        for value in selected_lyricists:
+            if value == "__new__":
+                lyricist_names.extend(custom_lyricist_names)
+            elif value == "__none__":
+                continue
+            elif value:
+                lyricist_names.append(value.strip())
+        lyricist_names = list(dict.fromkeys(name for name in lyricist_names if name))
+
+        work_type = (request.form.get("work_type") or "original").strip().lower()
+        if work_type not in {"original", "remix", "other"}:
+            work_type = "original"
+
+        remix_source_id_str = (request.form.get("remix_of_track_id") or "").strip()
+        remix_source = None
+        if remix_source_id_str:
+            try:
+                remix_source = Track.query.filter_by(id=int(remix_source_id_str)).first()
+            except (TypeError, ValueError):
+                remix_source = None
+
+        if remix_source is None and work_type == "remix":
+            typed_title = (request.form.get("remix_of_track_title") or "").strip()
+            if typed_title:
+                remix_source = Track.query.filter(db.func.lower(Track.title).like(f"%{typed_title.lower()}%")) .order_by(Track.title.asc()).first()
+
         track.title = request.form.get("title", "").strip()
         track.featuring = request.form.get("featuring", "").strip()
+        track.lyricist = ", ".join(lyricist_names) if lyricist_names else ""
+        track.lyrics = request.form.get("lyrics", "").strip() if lyricist_names else ""
+        track.work_type = work_type
+        track.remix_of = remix_source.title if remix_source and work_type == "remix" else ""
+        track.remix_of_track_id = remix_source.id if remix_source and work_type == "remix" else None
         track.is_the_shah = bool(request.form.get("is_the_shah"))
         track.cover_url = cover_file_url or request.form.get("cover_url", "").strip()
         track.duration = request.form.get("duration", "").strip()
@@ -1344,13 +1483,39 @@ def track_edit(track_id):
         track.youtube_url_secondary_is_music_video = bool(request.form.get("youtube_url_secondary_is_music_video"))
         track.soundcloud_url = request.form.get("soundcloud_url", "").strip()
         track.genre = request.form.get("genre", "").strip()
+
+        track.lyricists = []
+        for lyricist_name in lyricist_names:
+            lyricist = Lyricist.query.filter_by(name=lyricist_name).first()
+            if lyricist is None:
+                lyricist = Lyricist(name=lyricist_name)
+                db.session.add(lyricist)
+                db.session.flush()
+            track.lyricists.append(lyricist)
+
+        # If this track is a remix and a remix source was selected,
+        # copy lyricist string, lyrics text, and relationships from the source track.
+        if work_type == 'remix' and remix_source:
+            try:
+                track.lyricist = remix_source.lyricist or ''
+                track.lyrics = remix_source.lyrics or ''
+                track.lyricists = []
+                for src_lyr in remix_source.lyricists:
+                    track.lyricists.append(src_lyr)
+            except Exception:
+                pass
+
         db.session.commit()
         track.album.update_release_type()
         db.session.commit()
         flash("آهنگ ویرایش شد.", "success")
         return redirect_back("admin.dashboard") if (request.form.get("next") or request.args.get("next")) else redirect_to_content_section()
 
-    return render_template("admin/track_form.html", track=track, album=track.album, suggested_genres=SUGGESTED_GENRES)
+    for existing_name in track.lyricist_names:
+        if existing_name not in lyricist_options:
+            lyricist_options.append(existing_name)
+
+    return render_template("admin/track_form.html", track=track, album=track.album, all_tracks=all_tracks, suggested_genres=SUGGESTED_GENRES, lyricist_options=lyricist_options)
 
 
 @admin_bp.route("/track/<int:track_id>/delete", methods=["POST"])

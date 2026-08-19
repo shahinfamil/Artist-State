@@ -81,16 +81,39 @@
 
     const maxValue = Math.max(1, ...datasets.flatMap((dataset) => dataset.points.map((point) => point.value)));
     const width = 960;
-    const height = 360;
-    const padding = { top: 28, right: 24, bottom: 88, left: 92 };
+    const height = 300;
+    const padding = { top: 24, right: 24, bottom: 46, left: 48 };
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
     const stepX = sortedDates.length > 1 ? chartWidth / (sortedDates.length - 1) : chartWidth;
     const yAxisLevels = [];
+    const primarySeries = datasets[0]?.points || [];
+    const lastPoint = primarySeries[primarySeries.length - 1];
+    const firstPoint = primarySeries[0];
+    const summaryValue = lastPoint ? Number(lastPoint.value || 0) : 0;
+    const summaryChange = firstPoint && firstPoint.value ? ((summaryValue - firstPoint.value) / firstPoint.value) * 100 : 0;
+    const visibleDates = sortedDates.length > 1 ? [sortedDates[0], sortedDates[sortedDates.length - 1]] : sortedDates;
 
-    let svg = '<div class="history-chart-stage">';
+    let svg = '<div class="history-summary-card">';
+    svg += '<div class="history-summary-title">تاریخچه ویوها</div>';
+    svg += '<div class="history-summary-row">';
+    svg += '<div class="history-metric-value">' + summaryValue.toLocaleString('en-US') + '</div>';
+    svg += '<div class="history-metric-badge">▲ ' + Math.abs(summaryChange).toFixed(1) + '%</div>';
+    svg += '</div>';
+    svg += '<div class="history-summary-date">به‌روزرسانی: ' + (lastPoint?.label ? formatDayLabel(lastPoint.label) : '—') + '</div>';
+    svg += '</div>';
+    svg += '<div class="history-chart-stage">';
     svg += '<svg viewBox="0 0 ' + width + ' ' + height + '" class="history-svg">';
-    svg += '<rect x="0" y="0" width="' + width + '" height="' + height + '" rx="24" fill="rgba(255,255,255,0.02)"></rect>';
+    svg += '<defs>';
+    datasets.forEach((dataset) => {
+      const gradientId = 'history-gradient-' + dataset.label.replace(/\s+/g, '-').toLowerCase();
+      svg += '<linearGradient id="' + gradientId + '" x1="0" x2="0" y1="0" y2="1">';
+      svg += '<stop offset="0%" stop-color="' + dataset.color + '" stop-opacity="0.28"></stop>';
+      svg += '<stop offset="100%" stop-color="' + dataset.color + '" stop-opacity="0.02"></stop>';
+      svg += '</linearGradient>';
+    });
+    svg += '</defs>';
+    svg += '<rect x="0" y="0" width="' + width + '" height="' + height + '" rx="18" fill="rgba(255,255,255,0.015)"></rect>';
 
     for (let i = 0; i <= 4; i += 1) {
       const y = padding.top + (chartHeight / 4) * i;
@@ -103,34 +126,32 @@
       const points = dataset.points.map((point, index) => {
         const x = padding.left + stepX * index;
         const y = padding.top + chartHeight - (point.value / maxValue) * chartHeight;
-        return {
-          x,
-          y,
-          value: point.value,
-          date: point.date,
-          increase: point.increase,
-          total: point.total,
-          label: point.label,
-        };
+        return { x, y, value: point.value, date: point.date, increase: point.increase, total: point.total, label: point.label };
       });
 
       if (points.length > 1) {
         const linePath = points.map((point, index) => (index === 0 ? 'M' : 'L') + point.x + ' ' + point.y).join(' ');
-        svg += '<path d="' + linePath + '" fill="none" stroke="' + dataset.color + '" stroke-width="3" stroke-linecap="round"></path>';
+        const firstX = points[0].x;
+        const lastX = points[points.length - 1].x;
+        const baselineY = padding.top + chartHeight;
+        const areaPath = linePath + ' L ' + lastX + ' ' + baselineY + ' L ' + firstX + ' ' + baselineY + ' Z';
+        const gradientId = 'history-gradient-' + dataset.label.replace(/\s+/g, '-').toLowerCase();
+        svg += '<path d="' + areaPath + '" fill="url(#' + gradientId + ')" opacity="0.9"></path>';
+        svg += '<path d="' + linePath + '" fill="none" stroke="' + dataset.color + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>';
       }
 
       points.forEach((point) => {
         const increaseText = point.increase !== null && point.increase !== undefined && point.increase > 0
-          ? point.increase.toLocaleString('fa-IR') + ' '
-          : '۰ ';
-        svg += '<circle class="history-point" data-label="' + escapeTooltipText(point.label) + '" data-total="' + point.total.toLocaleString('fa-IR') + '" data-increase="' + increaseText + '" cx="' + point.x + '" cy="' + point.y + '" r="8" fill="' + dataset.color + '" stroke="#0f1115" stroke-width="2" style="cursor:pointer; pointer-events:all;"></circle>';
-        svg += '<circle cx="' + point.x + '" cy="' + point.y + '" r="13" fill="transparent" stroke="rgba(255,255,255,0.12)" stroke-width="1"></circle>';
+          ? point.increase.toLocaleString('en-US') + ' '
+          : '0 ';
+        svg += '<circle class="history-point" data-label="' + escapeTooltipText(formatDayLabel(point.label)) + '" data-total="' + point.total.toLocaleString('en-US') + '" data-increase="' + increaseText + '" cx="' + point.x + '" cy="' + point.y + '" r="6" fill="' + dataset.color + '" stroke="#0f1115" stroke-width="2" style="cursor:pointer; pointer-events:all;"></circle>';
       });
     });
 
-    sortedDates.forEach((date, index) => {
+    visibleDates.forEach((date) => {
+      const index = sortedDates.indexOf(date);
       const x = padding.left + stepX * index;
-      svg += '<text x="' + x + '" y="' + (height - 16) + '" text-anchor="middle" fill="#fff2c8" font-size="13" font-weight="800" font-family="Vazirmatn">' + formatDayLabel(date) + '</text>';
+      svg += '<text x="' + x + '" y="' + (height - 10) + '" text-anchor="middle" fill="#fff" font-size="18" font-weight="700" font-family="Vazirmatn">' + formatDayLabel(date) + '</text>';
     });
 
     svg += '</svg>';
@@ -160,19 +181,26 @@
     const svgScaleX = svgRect.width / width;
     const svgScaleY = svgRect.height / height;
 
+    (function adjustSvgTextSize() {
+      const desiredPx = 18;
+      const scale = svgScaleY || svgScaleX || 1;
+      const userUnits = Math.max(10, Math.round(desiredPx / scale));
+      const texts = svgElement.querySelectorAll('text');
+      texts.forEach((t) => t.setAttribute('font-size', userUnits));
+    })();
+
     yAxisLevels.forEach(({ y, value }) => {
       const label = document.createElement('div');
       label.className = 'history-axis-label';
-      label.textContent = value.toLocaleString('fa-IR');
+      label.textContent = value.toLocaleString('en-US');
       label.style.top = (y * svgScaleY) + 'px';
       axisLabelsLayer.appendChild(label);
     });
 
     const updateTooltip = (point) => {
-      const label = point.getAttribute('data-label') || '';
-      const total = point.getAttribute('data-total') || '۰';
-      const increase = point.getAttribute('data-increase') || '۰ ';
-      tooltipCard.innerHTML = '<div>' + total + '</div><div class="tooltip-meta">+' + increase + '</div>';
+      const total = point.getAttribute('data-total') || '0';
+      const label = point.getAttribute('data-label') || '—';
+      tooltipCard.innerHTML = '<div>' + total + '</div><div class="tooltip-meta">' + label + '</div>';
 
       const stageRect = chartStage.getBoundingClientRect();
       const pointRect = point.getBoundingClientRect();
@@ -188,11 +216,11 @@
       tooltip.classList.remove('visible');
     };
 
-    chartStage.querySelectorAll('.history-point').forEach((point, index) => {
+    chartStage.querySelectorAll('.history-point').forEach((point) => {
       const hit = document.createElement('div');
       hit.className = 'history-point-hit';
-      hit.setAttribute('data-label', point.getAttribute('data-label') || '');
       hit.setAttribute('data-total', point.getAttribute('data-total') || '');
+      hit.setAttribute('data-label', point.getAttribute('data-label') || '');
       hit.setAttribute('data-increase', point.getAttribute('data-increase') || '');
       const x = Number(point.getAttribute('cx') || 0);
       const y = Number(point.getAttribute('cy') || 0);
@@ -205,8 +233,8 @@
       pointsLayer.appendChild(hit);
     });
 
-    const firstPoint = pointsLayer.querySelector('.history-point-hit');
-    if (firstPoint) {
+    const firstPointHit = pointsLayer.querySelector('.history-point-hit');
+    if (firstPointHit) {
       hideTooltip();
     }
   }
