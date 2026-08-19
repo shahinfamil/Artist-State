@@ -1101,9 +1101,7 @@ def update_track_views(track, platform):
         return False
 
     db.session.commit()
-    cleanup_old_view_stats(track_id=track.id)
     return True
-
 
 def update_track_stats(track, platform="all"):
     """Update one platform or all platforms for a track."""
