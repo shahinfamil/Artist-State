@@ -1564,13 +1564,47 @@ def update_track_views(track_id, platform):
 
 
 # ---------------------------------------------------------------- آپدیت دستی ویوها
+import threading
+
+# قفل ساده برای جلوگیری از اجرای همزمان چند آپدیت
+_update_lock = threading.Lock()
+_update_running = False
+
 @admin_bp.route("/update-views", methods=["POST"])
 @login_required
 def trigger_update():
+    global _update_running
+
+    if _update_running:
+        flash("یک آپدیت آمار در حال اجراست. لطفاً صبر کنید.", "warning")
+        return redirect(url_for("admin.dashboard", _anchor="content"))
+
     from flask import current_app
     from app import update_all_tracks
-    update_all_tracks(current_app._get_current_object())
-    flash("آپدیت آمار انجام شد.", "success")
+
+    app_obj = current_app._get_current_object()
+
+    def run_update():
+        global _update_running
+        _update_running = True
+        try:
+            update_all_tracks(app_obj)
+        except Exception as e:
+            print(f"[updater] FATAL: {e}")
+        finally:
+            _update_running = False
+
+    if not _update_lock.acquire(blocking=False):
+        flash("یک آپدیت آمار در حال اجراست. لطفاً صبر کنید.", "warning")
+        return redirect(url_for("admin.dashboard", _anchor="content"))
+
+    try:
+        t = threading.Thread(target=run_update, daemon=True)
+        t.start()
+    finally:
+        _update_lock.release()
+
+    flash("آپدیت آمار در پس‌زمینه شروع شد. چند دقیقه بعد نتیجه در لاگ‌ها دیده می‌شود.", "success")
     return redirect(url_for("admin.dashboard", _anchor="content"))
 
 # ---------------------------------------------------------------- وارد کردن خودکار از اسپاتیفای

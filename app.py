@@ -1117,21 +1117,22 @@ def update_track_stats(track, platform="all"):
 
 
 def update_all_tracks(app):
-    """برای هر ترک، آخرین آمار سه پلتفرم را می‌گیرد و رکورد جدید ثبت می‌کند."""
     with app.app_context():
-        tracks = Track.query.all()
-        print(f"[updater] شروع آپدیت {len(tracks)} ترک در {datetime.now()}")
+        tracks = Track.query.filter_by(is_active=True).all()  # فقط فعال‌ها
+        total = len(tracks)
+        print(f"[updater] شروع آپدیت {total} ترک در {datetime.now()}")
 
-        for track in tracks:
+        for i, track in enumerate(tracks, 1):
             try:
                 updated = update_track_stats(track, platform="all")
-                if updated:
-                    print(f"  ✓ {track.title}: آمار به‌روزرسانی شد")
-                else:
-                    print(f"  • {track.title}: هیچ آمار معتبری دریافت نشد")
+                status = "✓" if updated else "•"
+                print(f"  {status} [{i}/{total}] {track.title}")
             except Exception as e:
                 db.session.rollback()
-                print(f"  ✗ خطا در ترک {track.title}: {e}")
+                print(f"  ✗ [{i}/{total}] {track.title}: {e}")
+
+            # کمی فاصله برای جلوگیری از rate-limit
+            time.sleep(1.5)
 
         print("[updater] آپدیت تمام شد.")
 
