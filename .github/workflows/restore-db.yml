@@ -1,0 +1,90 @@
+name: Restore Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'برای تأیید بنویس RESTORE'
+        required: true
+        default: ''
+      use_repo_file:
+        description: 'اگر artifact منقضی شده، روی true بگذار (باید backup.dump داخل ریپو باشد)'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - false
+          - true
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'RESTORE'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates lsb-release gnupg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_restore --version
+
+      # حالت ۱: دانلود از Artifact (اگر موجود باشد)
+      - name: Try download artifact
+        if: github.event.inputs.use_repo_file == 'false'
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          name: db-backup
+          workflow: backup-db.yml
+          workflow_conclusion: success
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          search_artifacts: true
+          path: ./backup-files
+
+      # حالت ۲: استفاده از فایل داخل ریپازیتوری
+      - name: Use backup.dump from repository
+        if: github.event.inputs.use_repo_file == 'true'
+        run: |
+          if [ ! -f "backup.dump" ]; then
+            echo "ERROR: فایل backup.dump در ریشه ریپازیتوری پیدا نشد!"
+            exit 1
+          fi
+          mkdir -p backup-files
+          cp backup.dump backup-files/backup.dump
+          echo "Using backup.dump from repository"
+
+      - name: Check backup file exists
+        run: |
+          if [ -f "backup-files/backup.dump" ]; then
+            echo "Backup file found"
+            ls -lh backup-files/backup.dump
+          elif [ -f "backup.dump" ]; then
+            mkdir -p backup-files
+            cp backup.dump backup-files/backup.dump
+            echo "Backup file found in root"
+          else
+            echo "ERROR: هیچ فایل بک‌آپی پیدا نشد!"
+            echo "اگر artifact منقضی شده، فایل backup.dump را در ریشه پروژه بگذار و use_repo_file را true کن."
+            exit 1
+          fi
+
+      - name: Restore database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "=== Starting Restore ==="
+          /usr/lib/postgresql/18/bin/pg_restore \
+            --no-owner \
+            --no-acl \
+            --clean \
+            --if-exists \
+            -d "$DATABASE_URL" \
+            backup-files/backup.dump
+          echo "=== Restore finished successfully ==="
