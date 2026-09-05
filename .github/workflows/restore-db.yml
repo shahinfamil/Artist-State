@@ -12,12 +12,12 @@ jobs:
 
       - name: Check backup file
         run: |
-          if [ ! -f data_backup.dump ]; then
-            echo "ERROR: data_backup.dump not found in repo root"
+          if [ ! -f backup.dump ]; then
+            echo "ERROR: backup.dump not found in repo root"
             ls -la
             exit 1
           fi
-          ls -lh data_backup.dump
+          ls -lh backup.dump
 
       - name: Install PostgreSQL 18 client
         run: |
@@ -47,6 +47,6 @@ jobs:
             --no-owner \
             --no-acl \
             -d "$DATABASE_URL" \
-            data_backup.dump
+            backup.dump
 
           echo "=== RESTORE DONE ==="
