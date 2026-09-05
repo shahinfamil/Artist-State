@@ -1,21 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="album-hero">
-  <div class="container">
-    <h1>آثار نوشته‌شده توسط "{{ person }}"</h1>
-  </div>
-</section>
-
 <section class="section">
   <div class="container">
     <div class="section-head">
       <p class="eyebrow">ترانه‌سرا</p>
-      <h2>ترک‌هایی که "{{ person }}" نوشته</h2>
-      <p class="muted">تعداد: {{ tracks|length }}</p>
+      <h2> {{ person }} ({{ tracks|length }})</h2>
     </div>
 
     {% if tracks and tracks|length > 0 %}
-    <div class="album-grid">
+    <div id="grid-lyricist" class="album-grid" data-paginate="true" data-per-page="8" data-items-count="{{ tracks|length }}" data-tab-name="lyricist">
       {% for t in tracks %}
       <a href="{{ url_for('track_detail', track_id=t.id, slug=slugify_text(t.title)) }}" class="album-card">
         <div class="album-cover-wrap">
@@ -27,10 +20,15 @@
       </a>
       {% endfor %}
     </div>
+    <div id="pagination-lyricist" class="pagination"></div>
     {% else %}
     <p class="empty-state">هنوز اثری از این ترانه‌سرا در سایت ثبت نشده.</p>
     {% endif %}
   </div>
 </section>
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/paginate-grid.js') }}"></script>
 {% endblock %}

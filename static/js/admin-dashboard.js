@@ -136,140 +136,7 @@
     });
   }
 
-  function initializeAnalyticsControls() {
-    const analyticsForm = document.getElementById('analyticsFiltersForm');
-    const dateFrom = document.getElementById('dateFrom');
-    const dateTo = document.getElementById('dateTo');
-
-    if (dateFrom && dateTo) {
-      const applyDateBounds = () => {
-        const minDate = dateFrom.getAttribute('min') || '';
-        const maxDate = dateTo.getAttribute('max') || '';
-
-        if (minDate) {
-          dateFrom.min = minDate;
-          dateTo.min = minDate;
-        }
-        if (maxDate) {
-          dateFrom.max = maxDate;
-          dateTo.max = maxDate;
-        }
-
-        if (dateFrom.value && minDate && dateFrom.value < minDate) {
-          dateFrom.value = minDate;
-        }
-        if (dateTo.value && maxDate && dateTo.value > maxDate) {
-          dateTo.value = maxDate;
-        }
-        if (dateFrom.value && dateTo.value && dateFrom.value > dateTo.value) {
-          dateTo.value = dateFrom.value;
-        }
-      };
-
-      applyDateBounds();
-      dateFrom.addEventListener('change', applyDateBounds);
-      dateTo.addEventListener('change', applyDateBounds);
-    }
-
-    const clearAnalyticsButton = document.querySelector('[data-analytics-action="clear"]');
-    const trackInput = document.getElementById('trackAnalyticsInput');
-    const trackHidden = document.getElementById('trackFilter');
-    const trackSuggestions = document.getElementById('trackAnalyticsSuggestions');
-    const trackSuggestionButtons = trackSuggestions ? Array.from(trackSuggestions.querySelectorAll('.analytics-track-suggestion')) : [];
-
-    async function applyAnalyticsFilters() {
-      if (!analyticsForm) return;
-
-      const formData = new FormData(analyticsForm);
-      const params = new URLSearchParams(window.location.search);
-      ['platform', 'track_id', 'date_from', 'date_to', 'partial', 'tab'].forEach((key) => params.delete(key));
-
-      formData.forEach((value, key) => {
-        if (value) {
-          params.set(key, value);
-        }
-      });
-
-      params.set('partial', '1');
-      params.set('tab', 'analytics');
-
-      const targetUrl = `${window.location.pathname}?${params.toString()}`;
-      const nextHash = '#analytics';
-      window.history.pushState({}, '', `${targetUrl}${nextHash}`);
-
-      const response = await fetch(targetUrl, {
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      });
-      const html = await response.text();
-      const analyticsPanel = document.querySelector('.analytics-panel');
-      if (analyticsPanel) {
-        analyticsPanel.innerHTML = html;
-        initializeAnalyticsControls();
-      }
-    }
-
-    if (analyticsForm) {
-      analyticsForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        applyAnalyticsFilters();
-      });
-    }
-
-    if (clearAnalyticsButton && analyticsForm) {
-      clearAnalyticsButton.addEventListener('click', () => {
-        analyticsForm.reset();
-        if (trackHidden) trackHidden.value = '';
-        if (trackInput) trackInput.value = '';
-        trackSuggestionButtons.forEach((button) => {
-          button.classList.remove('is-selected');
-          button.style.display = '';
-        });
-        applyAnalyticsFilters();
-      });
-    }
-
-    if (trackInput && trackHidden && trackSuggestions) {
-      const openSuggestions = () => trackSuggestions.classList.add('is-open');
-      const closeSuggestions = () => trackSuggestions.classList.remove('is-open');
-
-      const updateSuggestions = () => {
-        const query = (trackInput.value || '').trim().toLowerCase();
-        let visibleCount = 0;
-        trackSuggestionButtons.forEach((button) => {
-          const title = (button.getAttribute('data-track-title') || '').toLowerCase();
-          const matches = !query || title.includes(query);
-          button.style.display = matches ? '' : 'none';
-          if (matches) visibleCount += 1;
-        });
-        if (visibleCount) {
-          openSuggestions();
-        } else {
-          closeSuggestions();
-        }
-      };
-
-      trackInput.addEventListener('focus', updateSuggestions);
-      trackInput.addEventListener('input', updateSuggestions);
-      trackInput.addEventListener('click', updateSuggestions);
-
-      trackSuggestionButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-          trackInput.value = button.getAttribute('data-track-title') || '';
-          trackHidden.value = button.getAttribute('data-track-id') || '';
-          trackSuggestionButtons.forEach((item) => item.classList.toggle('is-selected', item === button));
-          closeSuggestions();
-        });
-      });
-
-      document.addEventListener('click', (event) => {
-        if (!trackInput.contains(event.target) && !trackSuggestions.contains(event.target)) {
-          closeSuggestions();
-        }
-      });
-    }
-  }
+  
 
   if (!tabs.length || !panels.length) return;
 
@@ -292,9 +159,7 @@
 
   const initialHash = window.location.hash.replace('#', '');
   const path = window.location.pathname;
-  const defaultTab = path.includes('/admin/analytics')
-    ? 'analytics'
-    : path.includes('/admin/users')
+  const defaultTab = path.includes('/admin/users')
     ? 'users'
     : path.includes('/admin/content')
     ? 'content'
@@ -387,5 +252,5 @@
     });
   });
 
-  initializeAnalyticsControls();
+  
 })();

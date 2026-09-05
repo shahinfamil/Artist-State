@@ -1,22 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
 {% set stats = track.latest_stats() %}
-<section class="track-hero track-hero--cover" style="background-image: linear-gradient(180deg, rgba(6,8,10,0.66), rgba(6,8,10,0.56)), url('{{ track.cover_url }}');">
+{% set lyric_source = track.remix_source if track.is_remix and track.remix_source else track %}
+{% set has_lyrics_section = lyric_source.lyricist_display or lyric_source.lyrics %}
+{% set has_player_section = track.music_video_url or track.spotify_url or track.soundcloud_url or track.youtube_url or track.youtube_url_secondary %}
+{% set has_history_section = True %}
+<section class="track-hero track-hero--cover" style="--track-cover: url('{{ track.cover_url }}');">
   <div class="container track-hero-inner">
     <div class="track-hero-media">
       <img src="{{ track.cover_url }}" class="track-hero-cover" alt="{{ track.title }}">
-        <div class="track-cover-caption">
-          {% set release_kind = release_label(track) %}
-          {% set release_kind_label = 'Single' if release_kind == 'Single' else 'EP' if release_kind == 'EP' else 'Album' if release_kind == 'Album' else 'Single' %}
-        </div>
+      {% if has_lyrics_section or has_player_section or has_history_section %}
+      <nav class="track-cover-nav" aria-label="Track section shortcuts">
+        {% if has_lyrics_section %}
+        <a href="#track-lyrics" class="track-cover-nav__button" aria-label="بخش ترانه">
+          <i class="icon ri-font-size-2" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+        {% if has_player_section %}
+        <a href="#track-player" class="track-cover-nav__button" aria-label="بخش پخش آهنگ در سایت">
+          <i class="icon ri-play-circle-line" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+        {% if has_history_section %}
+        <a href="#track-history" class="track-cover-nav__button" aria-label="بخش تاریخچه ویوها">
+          <i class="icon ri-bar-chart-box-line" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+      </nav>
+      {% endif %}
+      {% set release_kind = release_label(track) %}
+      {% set release_kind_label = 'Single' if release_kind == 'Single' else 'EP' if release_kind == 'EP' else 'Album' if release_kind == 'Album' else 'Single' %}
+      <a class="track-cover-caption" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) if track.album else '#' }}" aria-label="Open album page">
+        <span class="track-cover-badge">{{ release_kind_label }}</span>
+      </a>
     </div>
     <div class="track-hero-copy">
       <div class="track-meta-list">
-          {% if release_kind == 'Album' and track.album %}
-            <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) }}">{{ release_kind_label }} | {{ track.album.title }}</a>
-          {% else %}
-            <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('album_detail', album_id=track.album.id, slug=slugify_text(track.album.title)) }}">{{ release_kind_label }}</a>
-          {% endif %}
         <a class="track-meta-pill track-meta-pill--accent track-meta-pill--link" href="{{ url_for('the_shah_tracks') if track.is_the_shah else url_for('shahin_najafi_tracks') }}">
           <span>{{ track.display_artist_name }}</span>
           <i class="icon ri-user-star-line" aria-hidden="true"></i>
@@ -63,18 +82,24 @@
         {% endif %}
       </div>
       <div class="stat-cards">
+        {% if track.spotify_url %}
         <a class="stat-card stat-spotify" href="{{ track.spotify_url }}" target="_blank" aria-label="پخش در اسپاتیفای">
           <span class="stat-value">{{ stats.spotify|format_number }}</span>
           <i class="icon ri-spotify-fill" aria-hidden="true"></i>
         </a>
+        {% endif %}
+        {% if track.youtube_url %}
         <a class="stat-card stat-youtube" href="{{ track.youtube_url }}" target="_blank" aria-label="پخش در یوتیوب">
           <span class="stat-value">{{ stats.youtube|format_number }}</span>
           <i class="icon ri-youtube-fill" aria-hidden="true"></i>
         </a>
+        {% endif %}
+        {% if track.soundcloud_url %}
         <a class="stat-card stat-soundcloud" href="{{ track.soundcloud_url }}" target="_blank" aria-label="پخش در ساندکلود">
           <span class="stat-value">{{ stats.soundcloud|format_number }}</span>
           <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
         </a>
+        {% endif %}
       </div>
       {% if track.is_remix and track.remix_source %}
       <div class="remix-source-wrapper">
@@ -116,9 +141,8 @@
 </section>
 {% endif %}
 
-{% set lyric_source = track.remix_source if track.is_remix and track.remix_source else track %}
-{% if lyric_source.lyricist_display or lyric_source.lyrics %}
-<section class="section section-lyrics">
+{% if has_lyrics_section %}
+<section id="track-lyrics" class="section section-lyrics">
   <div class="container">
     <div class="section-head">
       <p class="eyebrow">ترانه</p>
@@ -147,7 +171,7 @@
 {% set youtube_video_id = youtube_link.split('v=')[-1].split('&')[0] if youtube_link and 'v=' in youtube_link else (youtube_link.split('/')[-1].split('?')[0] if youtube_link and 'youtu.be/' in youtube_link else None) %}
 {% set spotify_id = track.spotify_url.split('/track/')[1].split('?')[0] if track.spotify_url and '/track/' in track.spotify_url else None %}
 {% set soundcloud_embed_url = track.soundcloud_url|urlencode if track.soundcloud_url else None %}
-<section class="section section-video">
+<section id="track-player" class="section section-video">
   <div class="container">
     <div class="section-head">
       <p class="eyebrow">پخش رسانه</p>
@@ -252,7 +276,7 @@
 </section>
 {% endif %}
 
-<section class="section">
+<section id="track-history" class="section">
   <div class="container">
     <div class="section-head">
       <p class="eyebrow">روند روزانه</p>

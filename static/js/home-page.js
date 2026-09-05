@@ -33,4 +33,20 @@ document.addEventListener('DOMContentLoaded', function () {
       closeAll();
     }
   });
+  
+  // Genre card cover stack randomizer (moved from inline template)
+  document.querySelectorAll('.genre-card-cover-stack').forEach(function (stack) {
+    const images = Array.from(stack.querySelectorAll('img'));
+    if (!images.length) return;
+
+    const activeIndex = Math.floor(Math.random() * images.length);
+    images.forEach(function (img, index) {
+      const isActive = index === activeIndex;
+      img.classList.toggle('is-active', isActive);
+      img.style.opacity = '1';
+      img.style.filter = isActive ? 'saturate(1.1) contrast(1.04)' : 'blur(0.5px) brightness(0.62)';
+      img.style.transform = isActive ? 'translate(0, 0) scale(1.02) rotate(0deg)' : img.style.transform;
+    });
+  });
+
 });

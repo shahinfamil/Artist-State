@@ -48,7 +48,7 @@ function shouldSkipElement(element) {
     return true;
   }
 
-  if (element.closest('.no-auto-font')) {
+  if (element.closest('.no-auto-font, .platform-counts, .pc')) {
     return true;
   }
 

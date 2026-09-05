@@ -7,11 +7,10 @@
     return window.matchMedia("(max-width: 600px)").matches ? 6 : 8;
   }
 
-  const tabBtns = document.querySelectorAll(".tab-btn");
-  const tabContents = document.querySelectorAll(".tab-content");
-  const paginationContainers = document.querySelectorAll(".pagination");
+  const tabGroups = document.querySelectorAll(".discography-tabs");
+  if (tabGroups.length === 0) return;
 
-  if (tabBtns.length === 0) return;
+  const paginationContainers = document.querySelectorAll(".pagination");
 
   function attachSwipeNavigation(tabName) {
     const tabPanel = document.getElementById(`tab-${tabName}`);
@@ -128,8 +127,11 @@
   // Show specific page
   function showPage(tabName, pageIndex) {
     const gridElement = document.getElementById(`grid-${tabName}`);
+    if (!gridElement) return;
+
     const cards = gridElement.querySelectorAll(".album-card");
     const paginationEl = document.getElementById(`pagination-${tabName}`);
+    if (!paginationEl) return;
 
     const itemsPerPage = getItemsPerPage();
     const startIdx = pageIndex * itemsPerPage;
@@ -154,7 +156,14 @@
     nextBtn.disabled = pageIndex === pageButtons.length - 1;
 
     // Scroll to top
-    gridElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Scroll only when the grid/tab panel hasn't opted out
+    try {
+      if (!gridElement.dataset || gridElement.dataset.skipScroll !== "true") {
+        gridElement.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } catch (e) {
+      // fallback: do nothing
+    }
   }
 
   // Go to page handler
@@ -184,34 +193,161 @@
   }
 
   // Tab switching
-  tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tabName = btn.dataset.tab;
+  tabGroups.forEach((tabGroup) => {
+    const tabBtns = Array.from(tabGroup.querySelectorAll(".tab-btn"));
+    const groupName = tabGroup.dataset.tabGroup || "default";
+    const tabContents = Array.from(tabGroup.parentElement.querySelectorAll(".tab-content")).filter((content) => {
+      return (content.dataset.tabGroup || "default") === groupName;
+    });
 
-      // Remove active from all buttons
-      tabBtns.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
+    if (!tabBtns.length || !tabContents.length) return;
 
-      // Hide all tabs
-      tabContents.forEach((content) => content.classList.remove("active"));
+    tabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        try { btn.blur(); } catch (err) {}
+        // temporarily opt-out of auto-scroll for grids inside this tab while switching
+        try {
+          const targetGrid = document.getElementById(`grid-${btn.dataset.tab}`);
+          if (targetGrid) targetGrid.dataset.skipScroll = "true";
+        } catch (e) {}
 
-      // Show selected tab
-      const selectedTab = document.getElementById(`tab-${tabName}`);
-      if (selectedTab) {
-        selectedTab.classList.add("active");
-        window.dispatchEvent(new CustomEvent('track-album-ticker-refresh'));
-        setTimeout(function () {
-          window.dispatchEvent(new CustomEvent('track-album-ticker-refresh'));
-        }, 80);
-        // Reset pagination to page 1
-        showPage(tabName, 0);
+        const tabName = btn.dataset.tab;
+
+        tabBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        tabContents.forEach((content) => content.classList.remove("active"));
+
+        const selectedTab = document.getElementById(`tab-${tabName}`);
+          if (selectedTab) {
+            selectedTab.classList.add("active");
+            window.dispatchEvent(new CustomEvent('track-album-ticker-refresh'));
+            setTimeout(function () {
+              window.dispatchEvent(new CustomEvent('track-album-ticker-refresh'));
+            }, 80);
+
+            if (selectedTab.querySelector('.pagination') || selectedTab.querySelector('.album-card')) {
+              showPage(tabName, 0);
+            }
+          }
+
+          // re-enable scrolling shortly after tab switch
+          setTimeout(() => {
+            try {
+              const targetGrid = document.getElementById(`grid-${btn.dataset.tab}`);
+              if (targetGrid) delete targetGrid.dataset.skipScroll;
+            } catch (e) {}
+          }, 100);
+      });
+    });
+  });
+
+  function sortTrackRows(list, mode = (list.dataset.sortMode || "views")) {
+    const rows = Array.from(list.querySelectorAll(".track-row")).filter((row) => {
+      if (mode !== "growth") return true;
+      return Number(row.dataset.growth || 0) !== 0;
+    });
+
+    rows.sort((a, b) => {
+      const left = mode === "growth" ? Number(b.dataset.growth || 0) : Number(b.dataset.total || 0);
+      const right = mode === "growth" ? Number(a.dataset.growth || 0) : Number(a.dataset.total || 0);
+      return left - right;
+    });
+
+    rows.forEach((row, index) => {
+      list.appendChild(row);
+      const rank = row.querySelector(".track-rank");
+      if (rank) {
+        rank.textContent = String(index + 1).padStart(2, "0");
+      }
+
+      const totalValue = row.querySelector(".track-total-value");
+      const growthBadge = row.querySelector(".growth-badge");
+      if (totalValue && growthBadge) {
+        const showGrowth = mode === "growth";
+        totalValue.style.display = showGrowth ? "none" : "inline-block";
+        growthBadge.style.display = showGrowth ? "inline-flex" : "none";
+      }
+    });
+  }
+
+  function initTrackRevealMore() {
+    document.querySelectorAll(".track-list[data-show-count]").forEach((list) => {
+      const rows = Array.from(list.querySelectorAll(".track-row"));
+      const btn = list.parentElement.querySelector(".track-show-more");
+      if (!btn || rows.length <= 0) return;
+
+      const showCount = parseInt(list.dataset.showCount || "10", 10);
+      list.dataset.sortMode = list.dataset.sortMode || "views";
+      list.dataset.expanded = "false";
+
+      function updateRows() {
+        const expanded = list.dataset.expanded === "true";
+        sortTrackRows(list, list.dataset.sortMode || "views");
+
+        const visibleRows = Array.from(list.querySelectorAll(".track-row")).filter((row) => {
+          if ((list.dataset.sortMode || "views") !== "growth") return true;
+          return Number(row.dataset.growth || 0) !== 0;
+        });
+
+        visibleRows.forEach((row, index) => {
+          const shouldShow = expanded || index < showCount;
+          row.hidden = !shouldShow;
+          row.style.display = shouldShow ? "grid" : "none";
+        });
+
+        const remaining = Math.max(visibleRows.length - showCount, 0);
+        btn.textContent = expanded ? "پنهان کردن ترک‌های دیگر" : `نمایش دیگر ترک‌ها${remaining > 0 ? " (" + remaining + ")" : ""}`;
+        btn.setAttribute("aria-expanded", String(expanded));
+        btn.style.display = visibleRows.length > showCount ? "inline-flex" : "none";
+      }
+
+      btn.addEventListener("click", () => {
+        list.dataset.expanded = String(list.dataset.expanded !== "true");
+        updateRows();
+      });
+
+      const sortButtons = list.parentElement.querySelectorAll(".track-sort-btn");
+      sortButtons.forEach((sortBtn) => {
+        sortBtn.addEventListener("click", () => {
+          list.dataset.sortMode = sortBtn.dataset.sort || "views";
+          sortButtons.forEach((button) => button.classList.toggle("active", button === sortBtn));
+          updateRows();
+        });
+      });
+
+      updateRows();
+    });
+  }
+
+  // Initialize pagination only for paginated tab groups
+  tabGroups.forEach((tabGroup) => {
+    const groupName = tabGroup.dataset.tabGroup || "default";
+    const tabContents = Array.from(tabGroup.parentElement.querySelectorAll(".tab-content")).filter((content) => {
+      return (content.dataset.tabGroup || "default") === groupName;
+    });
+
+    tabContents.forEach((tabElement) => {
+      if (tabElement.dataset.firstPageOnly === "true") {
+        // ensure only first page items are visible (hide others)
+        const gridEl = tabElement.querySelector('.album-grid');
+        if (gridEl) {
+          const cards = Array.from(gridEl.querySelectorAll('.album-card'));
+          const per = getItemsPerPage();
+          cards.forEach((c, idx) => { c.style.display = idx < per ? 'block' : 'none'; });
+        }
+        // hide any existing pagination controls inside this tab content
+        const pag = tabElement.querySelectorAll('.pagination');
+        pag.forEach(p => { try { p.style.display = 'none'; } catch (e) {} });
+        return;
+      }
+
+      if (tabElement.querySelector(".pagination") || tabElement.dataset.itemsCount) {
+        initPagination(tabElement);
+        attachSwipeNavigation(tabElement.dataset.tabName);
       }
     });
   });
 
-  // Initialize pagination for all tabs
-  tabContents.forEach((tabElement) => {
-    initPagination(tabElement);
-    attachSwipeNavigation(tabElement.dataset.tabName);
-  });
+  initTrackRevealMore();
 })();

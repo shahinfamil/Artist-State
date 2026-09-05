@@ -119,45 +119,68 @@
       </h2>
     </div>
 
-    <div class="track-list">
-      {% for track in top_tracks %}
-      {% set stats = track.latest_stats() %}
-      {% set total = track.total_views() %}
-      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
-        <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
-        <div class="track-cover-wrap">
-          <img class="track-cover" src="{{ track.cover_url }}" alt="">
-          {% if track.is_the_shah %}
-          <span class="cover-badge" aria-label="The Shah">
-            <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
-          </span>
-          {% elif track.is_remix %}
-          <span class="cover-badge cover-badge--accent" aria-label="ریمیکس">
-            <i class="icon ri-repeat-2-fill" aria-hidden="true"></i>
-          </span>
-          {% endif %}
+    <div class="tab-content active" id="tab-all" data-tab-name="all" data-tab-group="home-top-tracks">
+      {% if top_all %}
+      <div class="track-list" data-show-count="10" data-sort-mode="views">
+        {% for track in top_all[:10] %}
+        {% set total = total_by_track.get(track.id, 0) if total_by_track is defined else 0 %}
+        {% set delta = top_all_deltas.get(track.id) if top_all_deltas is defined else None %}
+        <div class="track-row" data-total="{{ total or 0 }}" data-growth="{{ delta.delta if delta else 0 }}">
+          <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
+          <div class="track-cover-wrap">
+            <img class="track-cover" src="{{ track.cover_url }}" alt="">
+            {% if track.is_the_shah %}
+            <span class="cover-badge" aria-label="The Shah">
+              <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
+            </span>
+            {% elif track.is_remix %}
+            <span class="cover-badge cover-badge--accent" aria-label="ریمیکس">
+              <i class="icon ri-repeat-2-fill" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+          </div>
+          <div class="track-info">
+            <div class="track-title-row left">
+              <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+            </div>
+            {% set release_kind = release_label(track) %}
+            <span class="track-album album-page__track-subtitle">
+              {% if track.release_date %}
+                <span class="album-page__tag">Date</span>
+                <span>{{ track.release_date|format_date_short }}</span>
+              {% endif %}
+              {% if track.album.release_type == 'single' %}
+              <span class="album-page__tag">Album</span>
+              <span>Single</span>
+              {% else %}
+              <span class="album-page__tag">Album</span>
+              <span>{{ track.album.title }}</span>
+              {% endif %}
+            </span>
+          </div>
+          <div class="track-total">
+            <div class="platform-icons" aria-label="منابع ویو">
+              <span class="platform-link"><i class="platform-icon spotify ri-spotify-fill" aria-hidden="true"></i></span>
+              <span class="platform-link"><i class="platform-icon youtube ri-youtube-fill" aria-hidden="true"></i></span>
+              <span class="platform-link"><i class="platform-icon soundcloud ri-soundcloud-fill" aria-hidden="true"></i></span>
+            </div>
+            <span class="track-total-value">{{ total|format_number }}</span>
+            {% if delta %}
+              {% if delta.delta > 0 %}
+                <span class="growth-badge growth-up">+{{ delta.delta|format_number }}</span>
+              {% elif delta.delta < 0 %}
+                <span class="growth-badge growth-down">{{ delta.delta|format_number }}</span>
+              {% else %}
+                <span class="growth-badge growth-none">0</span>
+              {% endif %}
+            {% endif %}
+          </div>
         </div>
-        <span class="track-info">
-          <span class="track-title-row">
-            <span class="track-title">{{ track.title }}</span>
-          </span>
-        </span>
-        <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
-          {% set sp = stats.spotify or 0 %}
-          {% set yt = stats.youtube or 0 %}
-          {% set sc = stats.soundcloud or 0 %}
-          {% set t = (sp + yt + sc) or 1 %}
-          <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
-          <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
-          <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
-        </span>
-        <span class="track-meta-mobile">
-          <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
-        </span>
-      </a>
+        {% endfor %}
+      </div>
       {% else %}
       <p class="empty-state">هنوز هیچ ترکی ثبت نشده است.</p>
-      {% endfor %}
+      {% endif %}
     </div>
   </div>
 </section>
@@ -175,7 +198,7 @@
     </div>
 
     <!-- Tab Navigation -->
-    <div class="discography-tabs">
+    <div class="discography-tabs" data-tab-group="discography">
       <button class="tab-btn active" data-tab="singles">
         <i class="icon ri-music-fill" aria-hidden="true"></i>
         <span class="tab-label">تک آهنگ‌ها</span>
@@ -194,7 +217,7 @@
     </div>
 
     <!-- Tab Content: Singles -->
-    <div class="tab-content active" id="tab-singles" data-tab-name="singles" data-items-count="{{ singles|length }}">
+    <div class="tab-content active" id="tab-singles" data-tab-name="singles" data-tab-group="discography" data-items-count="{{ singles|length }}" data-first-page-only="true">
       {% if singles %}
       <div class="album-grid" id="grid-singles">
         {% for album in singles %}
@@ -222,7 +245,7 @@
     </div>
 
     <!-- Tab Content: EPs -->
-    <div class="tab-content" id="tab-eps" data-tab-name="eps" data-items-count="{{ eps|length }}">
+    <div class="tab-content" id="tab-eps" data-tab-name="eps" data-tab-group="discography" data-items-count="{{ eps|length }}" data-first-page-only="true">
       {% if eps %}
       <div class="album-grid" id="grid-eps">
         {% for album in eps %}
@@ -250,7 +273,7 @@
     </div>
 
     <!-- Tab Content: Full Albums -->
-    <div class="tab-content" id="tab-albums" data-tab-name="albums" data-items-count="{{ full_albums|length }}">
+    <div class="tab-content" id="tab-albums" data-tab-name="albums" data-tab-group="discography" data-items-count="{{ full_albums|length }}" data-first-page-only="true">
       {% if full_albums %}
       <div class="album-grid" id="grid-albums">
         {% for album in full_albums %}
@@ -292,20 +315,24 @@
       </h2>
     </div>
     <div class="genre-grid">
-      {% for style_name, tracks in styles %}
+      {% for style_name, tracks in styles[:3] %}
       <a href="{{ url_for('genre_detail', genre_name=style_name) }}" class="genre-card">
-        <div class="genre-card-cover-stack">
-          {% for t in tracks[:3] %}
-            <img src="{{ t.cover_url }}" alt="">
+        <span class="genre-card__count" aria-label="{{ tracks|length }} آهنگ">{{ tracks|length }}</span>
+        <div class="genre-card-cover-stack" aria-label="{{ style_name }}">
+          {% for t in tracks[:5] %}
+            <img src="{{ t.cover_url }}" alt="{{ style_name }}">
           {% endfor %}
         </div>
-        <h3>{{ style_name }}</h3>
-        <p class="muted">{{ tracks|length }} آهنگ</p>
+        <div class="genre-card__overlay">
+          <span class="genre-card__title">{{ style_name }}</span>
+        </div>
       </a>
       {% else %}
       <p class="empty-state">هنوز هیچ آهنگی سبک ندارد.</p>
       {% endfor %}
     </div>
+
+    
   </div>
 </section>
 
@@ -393,13 +420,13 @@
       </article>
       {% endfor %}
     </div>
-    <script src="{{ url_for('static', filename='js/home-page.js') }}"></script>
     {% else %}
     <p class="empty-state">هنوز تاریخ انتشار برای هیچ ترانه‌ای ثبت نشده است.</p>
     {% endif %}
   </div>
 </section>
 
+<script src="{{ url_for('static', filename='js/home-page.js') }}"></script>
 <script src="{{ url_for('static', filename='js/discography-tabs.js') }}"></script>
 
 {% endblock %}

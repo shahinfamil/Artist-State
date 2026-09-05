@@ -4,52 +4,38 @@
 <section class="album-hero">
   <div class="container">
     <h1>{{ genre_name }}</h1>
-    <p class="muted">{{ tracks|length }} ترک در این ژانر</p>
+    <p class="muted">{{ tracks|length }} آهنگ در این سبک</p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
-    <div class="track-list">
-      {% for track in tracks %}
-      {% set stats = track.latest_stats() %}
-      {% set total = track.total_views() %}
-      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
-        <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
-        <div class="track-cover-wrap">
-          <img class="track-cover" src="{{ track.cover_url }}" alt="">
-          {% if track.is_the_shah %}
+    {% if tracks and tracks|length > 0 %}
+    <div id="grid-genre" class="album-grid" data-paginate="true" data-per-page="8" data-items-count="{{ tracks|length }}" data-skip-scroll="true">
+      {% for t in tracks %}
+      <a href="{{ url_for('track_detail', track_id=t.id, slug=slugify_text(t.title)) }}" class="album-card">
+        <div class="album-cover-wrap">
+          <img src="{{ t.cover_url }}" alt="{{ t.title }}">
+          {% if t.is_the_shah %}
           <span class="cover-badge" aria-label="The Shah">
             <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
           </span>
           {% endif %}
+          <span class="play-overlay">مشاهده</span>
         </div>
-        <span class="track-info">
-          <span class="track-title-row">
-            <span class="track-title left">{{ track.title }}</span>
-          </span>
-          {% set feature_names = track.collaborator_names %}
-          {% if feature_names and track.lyricist_display %}
-          <span class="track-album date-display font-en"> Lyric: {{ track.lyricist_display }} | Feat: {{ feature_names|join(', ') }}</span>
-          {% elif feature_names %}
-          <span class="track-album date-display font-en">Feat: {{ feature_names|join(', ') }}</span>
-          {% endif %}
-        </span>
-        <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
-          {% set sp = stats.spotify or 0 %}
-          {% set yt = stats.youtube or 0 %}
-          {% set sc = stats.soundcloud or 0 %}
-          {% set t = (sp + yt + sc) or 1 %}
-          <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
-          <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
-          <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
-        </span>
-        <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
+        <h3>{{ t.title }}</h3>
+        <p class="muted">{{ t.display_artist_name }}{% if t.release_year %} · {{ t.release_year }}{% endif %}</p>
       </a>
-      {% else %}
-      <p class="empty-state">ترکی در این ژانر پیدا نشد.</p>
       {% endfor %}
     </div>
+    <div id="pagination-genre" class="pagination"></div>
+    {% else %}
+    <p class="empty-state">ترکی در این ژانر پیدا نشد.</p>
+    {% endif %}
   </div>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/paginate-grid.js') }}"></script>
 {% endblock %}

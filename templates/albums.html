@@ -64,7 +64,7 @@
             <span class="play-overlay">مشاهده</span>
           </div>
           <h3>{{ album.title }}</h3>
-          <p>{{ album.release_year }} · {{ album.tracks|length }} آهنگ</p>
+          <p>{{ album.release_year }} · {{ album.tracks|length }} Track</p>
         </a>
         {% endfor %}
       </div>
@@ -85,13 +85,13 @@
             <span class="play-overlay">مشاهده</span>
           </div>
           <h3>{{ album.title }}</h3>
-          <p>{{ album.release_year }} · {{ album.tracks|length }} آهنگ</p>
+          <p>{{ album.release_year }} · {{ album.tracks|length }} Track</p>
         </a>
         {% endfor %}
       </div>
       <div class="pagination" id="pagination-albums"></div>
       {% else %}
-      <p class="empty-state">هنوز هیچ آلبوم ثبت نشده است.</p>
+      <p class="empty-state">هنوز هیچ آلبومی ثبت نشده است.</p>
       {% endif %}
     </div>
 

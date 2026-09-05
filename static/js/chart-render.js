@@ -17,6 +17,10 @@
   const filterButtons = Array.from(document.querySelectorAll(".history-chip"));
   let selectedPlatform = "all";
 
+  function getAvailablePlatforms() {
+    return platformOrder.filter((platform) => (data[platform] || []).length > 0);
+  }
+
   function getDailySeries(platform) {
     const points = (data[platform] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
     return points.map((point) => ({
@@ -49,8 +53,23 @@
       .replace(/'/g, "&#39;");
   }
 
+  function getSummaryTitle(platform) {
+    if (platform === "all") return "تاریخچه بازدیدها";
+    return `تاریخچه بازدیدهای ${labels[platform]}`;
+  }
+
   function renderChart() {
-    const selectedPlatforms = selectedPlatform === "all" ? platformOrder : [selectedPlatform];
+    const availablePlatforms = getAvailablePlatforms();
+    if (!availablePlatforms.length) {
+      chartRoot.innerHTML = '<div class="history-empty">هنوز داده‌ای برای نمایش وجود ندارد.</div>';
+      return;
+    }
+
+    if (selectedPlatform !== "all" && !availablePlatforms.includes(selectedPlatform)) {
+      selectedPlatform = "all";
+    }
+
+    const selectedPlatforms = selectedPlatform === "all" ? availablePlatforms : [selectedPlatform];
     const allDates = new Set();
 
     selectedPlatforms.forEach((platform) => {
@@ -87,15 +106,28 @@
     const chartHeight = height - padding.top - padding.bottom;
     const stepX = sortedDates.length > 1 ? chartWidth / (sortedDates.length - 1) : chartWidth;
     const yAxisLevels = [];
-    const primarySeries = datasets[0]?.points || [];
-    const lastPoint = primarySeries[primarySeries.length - 1];
-    const firstPoint = primarySeries[0];
-    const summaryValue = lastPoint ? Number(lastPoint.value || 0) : 0;
-    const summaryChange = firstPoint && firstPoint.value ? ((summaryValue - firstPoint.value) / firstPoint.value) * 100 : 0;
+    const combinedPointsByDate = {};
+    selectedPlatforms.forEach((platform) => {
+      const series = getDailySeries(platform);
+      series.forEach((point) => {
+        combinedPointsByDate[point.date] = (combinedPointsByDate[point.date] || 0) + Number(point.value || 0);
+      });
+    });
+    const dateTotals = sortedDates.map((date) => Number(combinedPointsByDate[date] || 0));
+    const summarySeries = sortedDates.map((date, index) => ({
+      date,
+      value: dateTotals[index] || 0,
+      label: date,
+    }));
+    const firstPoint = summarySeries[0] || { value: 0, label: '' };
+    const lastPoint = summarySeries[summarySeries.length - 1] || firstPoint;
+    const summaryValue = lastPoint.value;
+    const firstTotal = firstPoint.value || 0;
+    const summaryChange = firstTotal ? ((summaryValue - firstTotal) / firstTotal) * 100 : 0;
     const visibleDates = sortedDates.length > 1 ? [sortedDates[0], sortedDates[sortedDates.length - 1]] : sortedDates;
 
     let svg = '<div class="history-summary-card">';
-    svg += '<div class="history-summary-title">تاریخچه ویوها</div>';
+    svg += '<div class="history-summary-title">' + getSummaryTitle(selectedPlatform) + '</div>';
     svg += '<div class="history-summary-row">';
     svg += '<div class="history-metric-value">' + summaryValue.toLocaleString('en-US') + '</div>';
     svg += '<div class="history-metric-badge">▲ ' + Math.abs(summaryChange).toFixed(1) + '%</div>';
@@ -239,13 +271,34 @@
     }
   }
 
+  function syncFilterButtons() {
+    const availablePlatforms = getAvailablePlatforms();
+    filterButtons.forEach((button) => {
+      const platform = button.dataset.platform || "all";
+      const isAvailable = platform === "all" ? availablePlatforms.length > 0 : availablePlatforms.includes(platform);
+      button.style.display = isAvailable ? "" : "none";
+      button.classList.toggle("active", selectedPlatform === platform || (selectedPlatform === "all" && platform === "all"));
+    });
+
+    const activeButton = filterButtons.find((button) => (button.dataset.platform || "all") === selectedPlatform)
+      || filterButtons.find((button) => (button.dataset.platform || "all") === "all");
+    if (activeButton) {
+      activeButton.classList.add("active");
+    }
+  }
+
   filterButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      selectedPlatform = button.dataset.platform || "all";
-      filterButtons.forEach((chip) => chip.classList.toggle("active", chip === button));
+      const platform = button.dataset.platform || "all";
+      if (platform !== "all" && !getAvailablePlatforms().includes(platform)) {
+        return;
+      }
+      selectedPlatform = platform;
+      syncFilterButtons();
       renderChart();
     });
   });
 
+  syncFilterButtons();
   renderChart();
 })();

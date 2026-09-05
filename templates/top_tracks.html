@@ -2,41 +2,50 @@
 {% block title %}پرطرفدارترین آهنگ‌ها — {{ artist.name }}{% endblock %}
 {% block content %}
 
-<section class="album-hero">
-  <div class="container">
-    <h1>پرطرفدارترین آهنگ‌ها</h1>
+<section class="top-tracks-hero">
+  <div class="container hero-inner">
+    <div class="hero-left">
+      <h1>پرطرفدارترین آهنگ‌ها</h1>
+    </div>
   </div>
 </section>
-
 <section class="section">
   <div class="container">
     <!-- Tab Navigation -->
     <div class="discography-tabs">
       <button class="tab-btn active" data-tab="all">
-        <span class="tab-label">همه پلتفرم‌ها</span>
+        <span class="tab-label">All</span>
       </button>
       <button class="tab-btn" data-tab="spotify" aria-label="اسپاتیفای">
         <i class="icon ri-spotify-fill" aria-hidden="true"></i>
-        <span class="sr-only">اسپاتیفای</span>
+        <span class="sr-only">Spotify</span>
       </button>
       <button class="tab-btn" data-tab="youtube" aria-label="یوتیوب">
         <i class="icon ri-youtube-fill" aria-hidden="true"></i>
-        <span class="sr-only">یوتیوب</span>
+        <span class="sr-only">YouTube</span>
       </button>
       <button class="tab-btn" data-tab="soundcloud" aria-label="ساندکلود">
         <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
-        <span class="sr-only">ساندکلود</span>
+        <span class="sr-only">SoundCloud</span>
       </button>
+      
     </div>
 
     <!-- Tab Content: All Platforms -->
     <div class="tab-content active" id="tab-all" data-tab-name="all">
       {% if top_all %}
-      <div class="track-list">
+      <div class="track-sort-control" aria-label="ترتیب بر اساس">
+        <div class="track-sort-options">
+          <button type="button" class="track-sort-btn active" data-sort="views">ویو کل</button>
+          <button type="button" class="track-sort-btn" data-sort="growth">رشد</button>
+        </div>
+      </div>
+      <div class="track-list" data-show-count="10" data-sort-mode="views">
         {% for track in top_all %}
-        {% set stats = track.latest_stats() %}
-        {% set total = track.total_views() %}
-        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+        {% set stats = stats_by_track.get(track.id, {}) if stats_by_track is defined else {} %}
+        {% set total = total_by_track.get(track.id, 0) if total_by_track is defined else 0 %}
+        {% set delta = top_all_deltas.get(track.id) if top_all_deltas is defined else None %}
+        <div class="track-row" data-total="{{ total or 0 }}" data-growth="{{ delta.delta if delta else 0 }}" {% if loop.index > 10 %}hidden{% endif %}>
           <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
           <div class="track-cover-wrap">
             <img class="track-cover" src="{{ track.cover_url }}" alt="">
@@ -46,41 +55,69 @@
             </span>
             {% endif %}
           </div>
-          <span class="track-info">
-            <span class="track-title-row left">
-              <span class="track-title left">{{ track.title }}</span>
-
-            </span>
+          <div class="track-info">
+            <div class="track-title-row left">
+              <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+            </div>
             {% set release_kind = release_label(track) %}
             {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
-          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
-          </span>
-          <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
-            {% set sp = stats.spotify or 0 %}
-            {% set yt = stats.youtube or 0 %}
-            {% set sc = stats.soundcloud or 0 %}
-            {% set t = (sp + yt + sc) or 1 %}
-            <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
-            <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
-            <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
-          </span>
-          <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
-        </a>
+            <span class="track-album album-page__track-subtitle">
+            {% if track.release_date %}
+              <span class="album-page__tag">Date</span>
+              <span>{{ track.release_date|format_date_short }}</span>
+            {% endif %}
+            {% if track.album.release_type == 'single' %}
+            <span class="album-page__tag">Album</span>
+            <span>Single</span>
+            {% else %}
+            <span class="album-page__tag">Album</span>
+            <span>{{ track.album.title }}</span>
+            {% endif %}
+            </span>
+          </div>
+          <div class="track-total">
+            <div class="platform-icons" aria-label="منابع ویو">
+              <span class="platform-link"><i class="platform-icon spotify ri-spotify-fill" aria-hidden="true"></i></span>
+              <span class="platform-link"><i class="platform-icon youtube ri-youtube-fill" aria-hidden="true"></i></span>
+              <span class="platform-link"><i class="platform-icon soundcloud ri-soundcloud-fill" aria-hidden="true"></i></span>
+            </div>
+            <span class="track-total-value">{{ total|format_number }}</span>
+            {% if delta %}
+              {% if delta.delta > 0 %}
+                <span class="growth-badge growth-up">+{{ delta.delta|format_number }}</span>
+              {% elif delta.delta < 0 %}
+                <span class="growth-badge growth-down">{{ delta.delta|format_number }}</span>
+              {% else %}
+                <span class="growth-badge growth-none">0</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
         {% endfor %}
       </div>
+      {% if top_all|length > 10 %}
+      <button type="button" class="track-show-more" aria-expanded="false">نمایش دیگر ترک‌ها</button>
+      {% endif %}
       {% else %}
-      <p class="empty-state">هنوز هیچ ترکی ثبت نشده است.</p>
+      <p class="empty-state">هنوز هیچ آهنگی ثبت نشده است.</p>
       {% endif %}
     </div>
 
     <!-- Tab Content: Spotify -->
     <div class="tab-content" id="tab-spotify" data-tab-name="spotify">
       {% if top_spotify %}
-      <div class="track-list">
+      <div class="track-sort-control" aria-label="ترتیب بر اساس">
+        <div class="track-sort-options">
+          <button type="button" class="track-sort-btn active" data-sort="views">ویو کل</button>
+          <button type="button" class="track-sort-btn" data-sort="growth">رشد</button>
+        </div>
+      </div>
+      <div class="track-list" data-show-count="10" data-sort-mode="views">
         {% for track in top_spotify %}
-        {% set stats = track.latest_stats() %}
-        {% set spotify_views = stats.spotify or 0 %}
-        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+        {% set stats = stats_by_track.get(track.id, {}) if stats_by_track is defined else {} %}
+        {% set spotify_views = stats.get('spotify') or 0 %}
+        {% set delta = top_spotify_deltas.get(track.id) if top_spotify_deltas is defined else None %}
+        <div class="track-row" data-total="{{ spotify_views or 0 }}" data-growth="{{ delta.delta if delta else 0 }}" {% if loop.index > 10 %}hidden{% endif %}>
           <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
           <div class="track-cover-wrap">
             <img class="track-cover" src="{{ track.cover_url }}" alt="">
@@ -90,34 +127,67 @@
             </span>
             {% endif %}
           </div>
-          <span class="track-info">
-            <span class="track-title-row left">
-              <span class="track-title left">{{ track.title }}</span>
-            </span>
+          <div class="track-info">
+            <div class="track-title-row left">
+              <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+            </div>
             {% set release_kind = release_label(track) %}
             {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
-          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
-          </span>
-          <span class="track-bars" title="ویوهای اسپاتیفای">
-            <span class="bar bar-spotify" style="width:100%"></span>
-          </span>
-          <span class="track-total">{{ spotify_views|format_number }}<small>ویو</small></span>
-        </a>
+            <span class="track-album album-page__track-subtitle">
+            {% if track.release_date %}
+              <span class="album-page__tag">Date</span>
+              <span>{{ track.release_date|format_date_short }}</span>
+            {% endif %}
+            {% if track.album.release_type == 'single' %}
+            <span class="album-page__tag">Album</span>
+            <span>Single</span>
+            {% else %}
+            <span class="album-page__tag">Album</span>
+            <span>{{ track.album.title }}</span>
+            {% endif %}
+            </span>
+          </div>
+          <div class="track-total">
+            <div class="platform-icons" aria-label="آمار اسپاتیفای">
+              <span class="platform-link"><i class="platform-icon spotify ri-spotify-fill" aria-hidden="true"></i></span>
+            </div>
+            <span class="track-total-value">{{ spotify_views|format_number }}</span>
+            {% if delta %}
+              {% if delta.delta > 0 %}
+                <span class="growth-badge growth-up">+{{ delta.delta|format_number }}</span>
+              {% elif delta.delta < 0 %}
+                <span class="growth-badge growth-down">{{ delta.delta|format_number }}</span>
+              {% else %}
+                <span class="growth-badge growth-none">0</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
         {% endfor %}
       </div>
+      {% if top_spotify|length > 10 %}
+      <button type="button" class="track-show-more" aria-expanded="false">نمایش دیگر آهنگ‌ها</button>
+      {% endif %}
       {% else %}
-      <p class="empty-state">هنوز هیچ ترکی بر اسپاتیفای ثبت نشده است.</p>
+      <p class="empty-state">هنوز هیچ آهنگی بر اسپاتیفای ثبت نشده است.</p>
       {% endif %}
     </div>
 
     <!-- Tab Content: YouTube -->
     <div class="tab-content" id="tab-youtube" data-tab-name="youtube">
       {% if top_youtube %}
-      <div class="track-list">
+      <div class="track-sort-control" aria-label="ترتیب بر اساس">
+        <div class="track-sort-options">
+          <button type="button" class="track-sort-btn active" data-sort="views">ویو کل</button>
+          <button type="button" class="track-sort-btn" data-sort="growth">رشد</button>
+        </div>
+      </div>
+      <div class="track-list" data-show-count="10" data-sort-mode="views">
         {% for track in top_youtube %}
-        {% set stats = track.latest_stats() %}
-        {% set youtube_views = stats.youtube or 0 %}
-        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+        {% set stats = stats_by_track.get(track.id, {}) if stats_by_track is defined else {} %}
+        {% set youtube_views = stats.get('youtube') or 0 %}
+        {% set delta = top_youtube_deltas.get(track.id) if top_youtube_deltas is defined else None %}
+        <div class="track-row" data-total="{{ youtube_views or 0 }}" data-growth="{{ delta.delta if delta else 0 }}" {% if loop.index > 10 %}hidden{% endif %}>
           <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
           <div class="track-cover-wrap">
             <img class="track-cover" src="{{ track.cover_url }}" alt="">
@@ -127,34 +197,67 @@
             </span>
             {% endif %}
           </div>
-          <span class="track-info">
-            <span class="track-title-row left">
-              <span class="track-title left">{{ track.title }}</span>
-            </span>
+          <div class="track-info">
+            <div class="track-title-row left">
+              <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+            </div>
             {% set release_kind = release_label(track) %}
             {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
-          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
-          </span>
-          <span class="track-bars" title="ویوهای یوتیوب">
-            <span class="bar bar-youtube" style="width:100%"></span>
-          </span>
-          <span class="track-total">{{ youtube_views|format_number }}<small>ویو</small></span>
-        </a>
+            <span class="track-album album-page__track-subtitle">
+            {% if track.release_date %}
+              <span class="album-page__tag">Date</span>
+              <span>{{ track.release_date|format_date_short }}</span>
+            {% endif %}
+            {% if track.album.release_type == 'single' %}
+            <span class="album-page__tag">Album</span>
+            <span>Single</span>
+            {% else %}
+            <span class="album-page__tag">Album</span>
+            <span>{{ track.album.title }}</span>
+            {% endif %}
+            </span>
+          </div>
+          <div class="track-total">
+            <div class="platform-icons" aria-label="آمار یوتیوب">
+              <span class="platform-link"><i class="platform-icon youtube ri-youtube-fill" aria-hidden="true"></i></span>
+            </div>
+            <span class="track-total-value">{{ youtube_views|format_number }}</span>
+            {% if delta %}
+              {% if delta.delta > 0 %}
+                <span class="growth-badge growth-up">+{{ delta.delta|format_number }}</span>
+              {% elif delta.delta < 0 %}
+                <span class="growth-badge growth-down">{{ delta.delta|format_number }}</span>
+              {% else %}
+                <span class="growth-badge growth-none">0</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
         {% endfor %}
       </div>
+      {% if top_youtube|length > 10 %}
+      <button type="button" class="track-show-more" aria-expanded="false">نمایش دیگر آهنگ‌ها</button>
+      {% endif %}
       {% else %}
-      <p class="empty-state">هنوز هیچ ترکی بر یوتیوب ثبت نشده است.</p>
+      <p class="empty-state">هنوز هیچ آهنگی بر یوتیوب ثبت نشده است.</p>
       {% endif %}
     </div>
 
     <!-- Tab Content: SoundCloud -->
     <div class="tab-content" id="tab-soundcloud" data-tab-name="soundcloud">
       {% if top_soundcloud %}
-      <div class="track-list">
+      <div class="track-sort-control" aria-label="ترتیب بر اساس">
+        <div class="track-sort-options">
+          <button type="button" class="track-sort-btn active" data-sort="views">ویو کل</button>
+          <button type="button" class="track-sort-btn" data-sort="growth">رشد</button>
+        </div>
+      </div>
+      <div class="track-list" data-show-count="10" data-sort-mode="views">
         {% for track in top_soundcloud %}
-        {% set stats = track.latest_stats() %}
-        {% set soundcloud_views = stats.soundcloud or 0 %}
-        <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
+        {% set stats = stats_by_track.get(track.id, {}) if stats_by_track is defined else {} %}
+        {% set soundcloud_views = stats.get('soundcloud') or 0 %}
+        {% set delta = top_soundcloud_deltas.get(track.id) if top_soundcloud_deltas is defined else None %}
+        <div class="track-row" data-total="{{ soundcloud_views or 0 }}" data-growth="{{ delta.delta if delta else 0 }}" {% if loop.index > 10 %}hidden{% endif %}>
           <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
           <div class="track-cover-wrap">
             <img class="track-cover" src="{{ track.cover_url }}" alt="">
@@ -164,23 +267,49 @@
             </span>
             {% endif %}
           </div>
-          <span class="track-info">
-            <span class="track-title-row left">
-              <span class="track-title left">{{ track.title }}</span>
-            </span>
+          <div class="track-info">
+            <div class="track-title-row left">
+              <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+            </div>
             {% set release_kind = release_label(track) %}
             {% set release_kind_label = 'Single' if release_kind == 'single' else 'EP' if release_kind == 'ep' else 'Album' if release_kind == 'album' else 'Single' %}
-          <span class="track-album">{{ track.display_artist_name }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %} | {% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %}</span>
-          </span>
-          <span class="track-bars" title="ویوهای ساندکلود">
-            <span class="bar bar-soundcloud" style="width:100%"></span>
-          </span>
-          <span class="track-total">{{ soundcloud_views|format_number }}<small>ویو</small></span>
-        </a>
+            <span class="track-album album-page__track-subtitle">
+            {% if track.release_date %}
+              <span class="album-page__tag">Date</span>
+              <span>{{ track.release_date|format_date_short }}</span>
+            {% endif %}
+            {% if track.album.release_type == 'single' %}
+            <span class="album-page__tag">Album</span>
+            <span>Single</span>
+            {% else %}
+            <span class="album-page__tag">Album</span>
+            <span>{{ track.album.title }}</span>
+            {% endif %}
+            </span>
+          </div>
+          <div class="track-total">
+            <div class="platform-icons" aria-label="آمار ساندکلود">
+              <span class="platform-link"><i class="platform-icon soundcloud ri-soundcloud-fill" aria-hidden="true"></i></span>
+            </div>
+            <span class="track-total-value">{{ soundcloud_views|format_number }}</span>
+            {% if delta %}
+              {% if delta.delta > 0 %}
+                <span class="growth-badge growth-up">+{{ delta.delta|format_number }}</span>
+              {% elif delta.delta < 0 %}
+                <span class="growth-badge growth-down">{{ delta.delta|format_number }}</span>
+              {% else %}
+                <span class="growth-badge growth-none">0</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
         {% endfor %}
       </div>
+      {% if top_soundcloud|length > 10 %}
+      <button type="button" class="track-show-more" aria-expanded="false">نمایش دیگر آهنگ‌ها</button>
+      {% endif %}
       {% else %}
-      <p class="empty-state">هنوز هیچ ترکی بر ساندکلود ثبت نشده است.</p>
+      <p class="empty-state">هنوز هیچ آهنگی بر ساندکلود ثبت نشده است.</p>
       {% endif %}
     </div>
 

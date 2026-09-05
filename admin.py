@@ -8,7 +8,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
@@ -426,6 +426,180 @@ def build_analytics_context():
         for row in analytics_rows
     ])
 
+    # --- growth metrics: per-track and aggregate for day/week/month/year ---
+    now = datetime.now()
+    day_cutoff = now - timedelta(days=1)
+    week_cutoff = now - timedelta(days=7)
+    month_cutoff = now - timedelta(days=30)
+    year_cutoff = now - timedelta(days=365)
+
+    active_platforms = [platform_filter] if platform_filter else ["spotify", "youtube", "soundcloud"]
+
+    def _views_at_or_before(track_id, cutoff, platforms=None):
+        selected_platforms = platforms or active_platforms
+        total = 0
+        for platform in selected_platforms:
+            stat = (
+                ViewStat.query.filter_by(track_id=track_id, platform=platform)
+                .filter(ViewStat.fetched_at <= cutoff)
+                .order_by(ViewStat.fetched_at.desc())
+                .first()
+            )
+            if stat and stat.views:
+                total += int(stat.views)
+        return total
+
+    def _last_previous_views(track_id, platform, latest_fetched_at=None):
+        query = ViewStat.query.filter_by(track_id=track_id, platform=platform)
+        if latest_fetched_at is not None:
+            query = query.filter(ViewStat.fetched_at < latest_fetched_at)
+        stat = query.order_by(ViewStat.fetched_at.desc()).first()
+        if not stat:
+            return 0
+        return int(stat.views or 0)
+
+    def _growth_in_recent_window(track_id, days, platforms=None):
+        selected_platforms = platforms or active_platforms
+        window_start = now - timedelta(days=days)
+        total = 0
+        for platform in selected_platforms:
+            stats = (
+                ViewStat.query.filter_by(track_id=track_id, platform=platform)
+                .filter(ViewStat.fetched_at >= window_start)
+                .order_by(ViewStat.fetched_at.asc())
+                .all()
+            )
+            if not stats:
+                continue
+            baseline = int(stats[0].views or 0)
+            latest = int(stats[-1].views or 0)
+            total += latest - baseline
+        return total
+
+    def _window_based_growth(track_id, days, platforms=None):
+        return _growth_in_recent_window(track_id, days, platforms=platforms)
+
+    per_track_growth = []
+    agg_latest = 0
+    agg_day_old = 0
+    agg_week_old = 0
+    agg_month_old = 0
+    agg_year_old = 0
+
+    # ensure tracks list is available for per-track growth computation
+    tracks = Track.query.order_by(Track.title.asc()).all()
+    if platform_filter:
+        platform_field_map = {
+            "spotify": "spotify_url",
+            "youtube": "youtube_url",
+            "soundcloud": "soundcloud_url",
+        }
+        link_field = platform_field_map.get(platform_filter)
+        if link_field:
+            tracks = [
+                track for track in tracks
+                if (getattr(track, link_field, None) or "").strip()
+            ]
+    else:
+        tracks = [
+            track for track in tracks
+            if any((getattr(track, field, None) or "").strip() for field in ("spotify_url", "youtube_url", "soundcloud_url"))
+        ]
+
+    selected_track_title = None
+    if track_filter:
+        selected_track = Track.query.get(int(track_filter))
+        if selected_track:
+            selected_track_title = selected_track.title
+
+    # we will iterate tracks (full list) and compute growth for each
+    for track in tracks:
+        latest_platform_views = {}
+        previous_total = 0
+        for platform in active_platforms:
+            latest_stat = (
+                ViewStat.query.filter_by(track_id=track.id, platform=platform)
+                .order_by(ViewStat.fetched_at.desc())
+                .first()
+            )
+            if latest_stat:
+                latest_platform_views[platform] = int(latest_stat.views or 0)
+                previous_platform_views = _last_previous_views(track.id, platform, latest_stat.fetched_at)
+                previous_total += previous_platform_views
+            else:
+                latest_platform_views[platform] = 0
+
+        latest = sum(latest_platform_views.values())
+
+        old_day = _views_at_or_before(track.id, day_cutoff, platforms=active_platforms)
+        old_week = _views_at_or_before(track.id, week_cutoff, platforms=active_platforms)
+        old_month = _views_at_or_before(track.id, month_cutoff, platforms=active_platforms)
+        old_year = _views_at_or_before(track.id, year_cutoff, platforms=active_platforms)
+        recent_week_growth = _window_based_growth(track.id, 7, platforms=active_platforms)
+        recent_month_growth = _window_based_growth(track.id, 30, platforms=active_platforms)
+        recent_year_growth = _window_based_growth(track.id, 365, platforms=active_platforms)
+
+        def pct_change(new, old):
+            if old:
+                return int(round((new - old) / float(old) * 100))
+            if new and not old:
+                return 100
+            return 0
+
+        pg = {
+            "track_id": track.id,
+            "title": getattr(track, "title", "")[:60],
+            "latest": latest,
+            "day_old": previous_total,
+            "week_old": old_week,
+            "month_old": old_month,
+            "year_old": old_year,
+            "growth_day_pct": pct_change(latest, previous_total),
+            "growth_day_abs": latest - previous_total,
+            "growth_week_pct": pct_change(recent_week_growth, old_week),
+            "growth_week_abs": recent_week_growth,
+            "growth_month_pct": pct_change(recent_month_growth, old_month),
+            "growth_month_abs": recent_month_growth,
+            "growth_year_pct": pct_change(recent_year_growth, old_year),
+            "growth_year_abs": recent_year_growth,
+        }
+        per_track_growth.append(pg)
+
+        agg_latest += latest
+        agg_day_old += previous_total
+        agg_week_old += old_week
+        agg_month_old += old_month
+        agg_year_old += old_year
+
+    def _agg_pct(new, old):
+        if old:
+            return int(round((new - old) / float(old) * 100))
+        if new and not old:
+            return 100
+        return 0
+
+    per_track_growth = sorted(per_track_growth, key=lambda item: item["growth_day_abs"], reverse=True)
+
+    aggregate_growth = {
+        "latest": agg_latest,
+        "day_old": agg_day_old,
+        "week_old": agg_week_old,
+        "month_old": agg_month_old,
+        "year_old": agg_year_old,
+        "growth_day_abs": sum(item["growth_day_abs"] for item in per_track_growth),
+        "growth_week_abs": sum(item["growth_week_abs"] for item in per_track_growth),
+        "growth_month_abs": sum(item["growth_month_abs"] for item in per_track_growth),
+        "growth_year_abs": sum(item["growth_year_abs"] for item in per_track_growth),
+        "growth_day_pct": _agg_pct(sum(item["latest"] for item in per_track_growth), sum(item["day_old"] for item in per_track_growth)),
+        "growth_week_pct": _agg_pct(sum(item["latest"] for item in per_track_growth), sum(item["week_old"] for item in per_track_growth)),
+        "growth_month_pct": _agg_pct(sum(item["latest"] for item in per_track_growth), sum(item["month_old"] for item in per_track_growth)),
+        "growth_year_pct": _agg_pct(sum(item["latest"] for item in per_track_growth), sum(item["year_old"] for item in per_track_growth)),
+    }
+
+    # load tracks before building the rest of the analytics context
+    # tracks already loaded above before growth calculations
+
+
     grouped_rows = {}
     for row in analytics_rows:
         key = (row.track.title, row.platform)
@@ -449,12 +623,7 @@ def build_analytics_context():
         for (track_title, platform), item_data in sorted(grouped_rows.items(), key=lambda item: (-item[1]["views"], item[0][0], item[0][1]))
     ]
 
-    tracks = Track.query.order_by(Track.title.asc()).all()
-    selected_track_title = None
-    if track_filter:
-        selected_track = Track.query.get(int(track_filter))
-        if selected_track:
-            selected_track_title = selected_track.title
+    
 
     analytics_context = {
         "analytics_summary": analytics_summary,
@@ -468,6 +637,8 @@ def build_analytics_context():
         "analytics_date_max": max_date.strftime("%Y-%m-%d") if max_date else "",
         "tracks": tracks,
         "selected_track_title": selected_track_title,
+        "per_track_growth": per_track_growth,
+        "aggregate_growth": aggregate_growth,
     }
 
     if request.args.get("partial") == "1":
@@ -477,18 +648,108 @@ def build_analytics_context():
 
 
 def build_dashboard_stats(tracks):
-    lyricist_stats = []
+    lyricist_map = {}
     try:
         # یک ترک می‌تواند چند ترانه‌سرا داشته باشد؛ در این حالت هر نفر به‌صورت اشتراکی
         # برای همان ترک اعتبار می‌گیرد، اما متن ترانه و آهنگ‌ها به‌صورت یک‌دسته مشترک نگه داشته می‌شوند.
-        lyricist_stats = [
-            {"name": name, "count": int(count or 0)}
-            for name, count in get_lyricist_track_counts()
-        ]
+        for name, count in get_lyricist_track_counts():
+            if name:
+                lyricist_map[name] = int(count or 0)
     except Exception:
-        lyricist_stats = []
+        lyricist_map = {}
 
-    lyricist_stats = sorted(lyricist_stats, key=lambda item: (-item["count"], item["name"]))
+    for track in tracks:
+        names = []
+        try:
+            names.extend(getattr(track, "lyricist_names", []) or [])
+        except Exception:
+            names = []
+
+        if not names:
+            names.extend(
+                part.strip()
+                for part in str(getattr(track, "lyricist", "") or "").split(",")
+                if part and part.strip()
+            )
+
+        for name in list(dict.fromkeys(part.strip() for part in names if part and part.strip())):
+            lyricist_map[name] = lyricist_map.get(name, 0) + 1
+
+    lyricist_stats = [
+        {"name": name, "count": count}
+        for name, count in sorted(lyricist_map.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+    total_tracks = len(tracks)
+
+    lyricist_tracks = sum(
+        1
+        for track in tracks
+        if track.lyricist_names
+    )
+    shahin_najafi_tracks = 0
+    for track in tracks:
+        names = []
+        try:
+            names.extend(getattr(track, "lyricist_names", []) or [])
+        except Exception:
+            names = []
+        if not names:
+            names.extend(
+                part.strip()
+                for part in str(getattr(track, "lyricist", "") or "").split(",")
+                if part and part.strip()
+            )
+        normalized_names = []
+        for name in names:
+            text = re.sub(r"\s+", " ", str(name).strip().lower())
+            text = text.replace("ي", "ی").replace("ك", "ک")
+            normalized_names.append(text)
+        shahin_variants = {
+            "شاهین نجفی",
+            "شاهين نجفی",
+            "shahin najafi",
+            "شاهین نجفی ",
+            "شاهين نجفی ",
+            "shahin najafi ",
+        }
+        if any(value.lower().replace("ي", "ی").replace("ك", "ک").strip() in normalized_names for value in shahin_variants):
+            shahin_najafi_tracks += 1
+
+    no_lyricist_tracks = total_tracks - lyricist_tracks if total_tracks else 0
+    lyricist_percent = int(round((lyricist_tracks / total_tracks) * 100)) if total_tracks else 0
+    no_lyricist_percent = int(round((no_lyricist_tracks / total_tracks) * 100)) if total_tracks else 0
+    shahin_najafi_percent = int(round((shahin_najafi_tracks / total_tracks) * 100)) if total_tracks else 0
+
+    lyricist_breakdown = [
+        {
+            "name": "بی کلام",
+            "count": no_lyricist_tracks,
+            "percent": no_lyricist_percent,
+            "color": "#f59e0b",
+        },
+        {
+            "name": "دارای ترانه‌سرا",
+            "count": lyricist_tracks,
+            "percent": lyricist_percent,
+            "color": "#14b8a6",
+        },
+    ]
+
+    lyricist_segments = []
+    lyricist_accumulated = 0
+    circumference = 615.75
+    for item in lyricist_breakdown:
+        dash = (item["count"] / total_tracks) * circumference if total_tracks else 0
+        lyricist_segments.append({
+            "label": item["name"],
+            "count": item["count"],
+            "percent": item["percent"],
+            "color": item["color"],
+            "dash": dash,
+            "offset": lyricist_accumulated,
+        })
+        lyricist_accumulated += dash
 
     genre_map = {}
     platform_counts = {"spotify": 0, "youtube": 0, "soundcloud": 0}
@@ -513,7 +774,6 @@ def build_dashboard_stats(tracks):
         if track.spotify_url or track.youtube_url or track.youtube_url_secondary or track.soundcloud_url:
             linked_tracks += 1
 
-    total_tracks = len(tracks)
     genre_stats = []
     for genre, count in sorted(genre_map.items(), key=lambda item: item[1], reverse=True):
         percent = int(round((count / total_tracks) * 100)) if total_tracks else 0
@@ -583,10 +843,63 @@ def build_dashboard_stats(tracks):
         })
 
     active_tracks = sum(1 for track in tracks if track.is_active)
+
+    def normalize_shahin_name(value):
+        return Track._normalize_name(value) if value else ""
+
+    def is_shahin_najafi_track(track):
+        candidates = [
+            getattr(track, "artist_name", None),
+            getattr(getattr(track, "album", None), "artist_name", None),
+            getattr(track, "display_artist_name", None),
+        ]
+        shahin_aliases = {
+            "shahin najafi",
+            "شاهین نجفی",
+            "شاهين نجفی",
+            "shahin",
+            "شاهین",
+        }
+        for candidate in candidates:
+            if normalize_shahin_name(candidate) in shahin_aliases:
+                return True
+        return False
+
+    shahin_music_video_items = []
+    for track in tracks:
+        if not track.music_video_url:
+            continue
+        if not (is_shahin_najafi_track(track) or track.is_the_shah):
+            continue
+        year = None
+        if getattr(track, "release_date", None):
+            try:
+                year = track.release_date.year
+            except Exception:
+                year = None
+        if year is None and getattr(track.album, "release_year", None):
+            year = track.album.release_year
+        if year is None:
+            continue
+        shahin_music_video_items.append({
+            "title": track.title,
+            "year": year,
+        })
+
+    shahin_music_video_items = sorted(
+        shahin_music_video_items,
+        key=lambda item: (item["year"], item["title"])
+    )
+    shahin_najafi_artist_tracks = sum(1 for track in tracks if is_shahin_najafi_track(track) or track.is_the_shah)
+    shahin_music_video_total = len(shahin_music_video_items)
+    shahin_music_video_percent = int(round((shahin_music_video_total / shahin_najafi_artist_tracks) * 100)) if shahin_najafi_artist_tracks else 0
+
+    active_tracks = sum(1 for track in tracks if track.is_active)
     solo_tracks = sum(1 for track in tracks if (not track.featuring or not track.featuring.strip()) and not track.is_the_shah)
     the_shah_tracks = sum(1 for track in tracks if track.is_the_shah)
     the_shah_solo = sum(1 for track in tracks if track.is_the_shah and (not track.featuring or not track.featuring.strip()))
     the_shah_with_featured = sum(1 for track in tracks if track.is_the_shah and track.featuring and track.featuring.strip())
+    shahin_najafi_with_featured = sum(1 for track in tracks if is_shahin_najafi_track(track) and track.featuring and track.featuring.strip())
     featured_tracks = sum(1 for track in tracks if track.featuring and track.featuring.strip())
     collaboration_tracks = featured_tracks
     no_collaboration_tracks = solo_tracks + the_shah_solo
@@ -595,6 +908,8 @@ def build_dashboard_stats(tracks):
     the_shah_percent = int(round((the_shah_tracks / no_collaboration_tracks) * 100)) if no_collaboration_tracks else 0
     the_shah_chart_percent = int(round((the_shah_tracks / total_tracks) * 100)) if total_tracks else 0
     the_shah_chart_solo_percent = int(round((the_shah_solo / total_tracks) * 100)) if total_tracks else 0
+    the_shah_collaboration_percent = int(round((the_shah_with_featured / the_shah_tracks) * 100)) if the_shah_tracks else 0
+    shahin_najafi_collaboration_percent = int(round((shahin_najafi_with_featured / shahin_najafi_artist_tracks) * 100)) if shahin_najafi_artist_tracks else 0
     featured_artist_counts = {}
     for track in tracks:
         if not track.featuring or not track.featuring.strip():
@@ -671,6 +986,12 @@ def build_dashboard_stats(tracks):
             "no_mv": total_tracks - music_video_tracks,
             "percent": int(round((music_video_tracks / total_tracks) * 100)) if total_tracks else 0,
         },
+        "shahin_music_video_stats": {
+            "count": shahin_music_video_total,
+            "percent": shahin_music_video_percent,
+            "tracks": shahin_music_video_items,
+            "yearly": shahin_music_video_items,
+        },
         "active_stats": {
             "active": active_tracks,
             "inactive": total_tracks - active_tracks,
@@ -682,8 +1003,13 @@ def build_dashboard_stats(tracks):
             "the_shah": the_shah_solo,
             "the_shah_solo": the_shah_solo,
             "the_shah_with_featured": the_shah_with_featured,
+            "shahin_najafi_with_featured": shahin_najafi_with_featured,
+            "shahin_najafi_total": shahin_najafi_artist_tracks,
             "the_shah_total": the_shah_tracks,
+            "the_shah_collaboration_percent": the_shah_collaboration_percent,
+            "shahin_najafi_collaboration_percent": shahin_najafi_collaboration_percent,
             "no_collaboration": no_collaboration_tracks,
+            "no_collaboration_tracks": no_collaboration_tracks,
             "no_collaboration_percent": no_collaboration_tracks_percent,
             "the_shah_percent": the_shah_percent,
             "the_shah_chart_percent": the_shah_chart_percent,
@@ -697,6 +1023,18 @@ def build_dashboard_stats(tracks):
         "linked_stats": linked_stats,
         "collaboration_breakdown": collaboration_breakdown,
         "collaboration_segments": collaboration_segments,
+        "lyricist_breakdown": lyricist_breakdown,
+        "lyricist_segments": lyricist_segments,
+        "lyricist_summary": {
+            "with_lyricist": lyricist_tracks,
+            "without_lyricist": no_lyricist_tracks,
+            "with_lyricist_percent": lyricist_percent,
+            "without_lyricist_percent": no_lyricist_percent,
+            "shahin_najafi": {
+                "count": shahin_najafi_tracks,
+                "percent": shahin_najafi_percent,
+            },
+        },
         "linked_tracks": linked_tracks,
         "total_tracks": total_tracks,
     }
@@ -834,6 +1172,22 @@ def dashboard():
     )
 
 
+@admin_bp.route("/growth")
+@login_required
+def growth_page():
+    artist, albums, users, tracks = get_admin_dashboard_base_context()
+    analytics_context, _ = build_analytics_context()
+    return render_template(
+        "admin/growth.html",
+        artist=artist,
+        albums=albums,
+        users=users,
+        tracks=tracks,
+        aggregate_growth=analytics_context.get("aggregate_growth", {}),
+        per_track_growth=analytics_context.get("per_track_growth", []),
+    )
+
+
 @admin_bp.route("/view-history/cleanup", methods=["POST"])
 @login_required
 def cleanup_all_view_history():
@@ -848,24 +1202,7 @@ def cleanup_all_view_history():
     return redirect(url_for("admin.dashboard"))
 
 
-@admin_bp.route("/analytics")
-@login_required
-def dashboard_analytics():
-    artist, albums, users, tracks = get_admin_dashboard_base_context()
-    analytics_context, partial_template = build_analytics_context()
 
-    if partial_template is not None:
-        return partial_template
-
-    context = {
-        "artist": artist,
-        "albums": albums,
-        "users": users,
-        "tracks": tracks,
-    }
-    context.update(analytics_context)
-
-    return render_template("admin/dashboard_analytics.html", **context)
 
 
 @admin_bp.route("/users")
@@ -912,6 +1249,23 @@ def user_toggle_admin(user_id):
     db.session.commit()
     flash(f"دسترسی ادمین برای {user.email} {'فعال شد' if user.is_admin else 'غیرفعال شد'}.", "success")
     return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/auth-toggle/<feature>", methods=["POST"])
+@login_required
+def auth_toggle(feature):
+    feature_key = (feature or "").lower()
+    if feature_key == "login":
+        current_app.config["AUTH_LOGIN_ENABLED"] = not current_app.config.get("AUTH_LOGIN_ENABLED", True)
+        state_text = "فعال" if current_app.config.get("AUTH_LOGIN_ENABLED", True) else "غیرفعال"
+        flash(f"ورود {state_text} شد.", "success")
+    elif feature_key == "register":
+        current_app.config["AUTH_REGISTER_ENABLED"] = not current_app.config.get("AUTH_REGISTER_ENABLED", True)
+        state_text = "فعال" if current_app.config.get("AUTH_REGISTER_ENABLED", True) else "غیرفعال"
+        flash(f"ثبت نام {state_text} شد.", "success")
+    else:
+        flash("نوع تنظیم نامعتبر است.", "error")
+    return redirect(url_for("admin.dashboard_users"))
 
 
 @admin_bp.route("/user/<int:user_id>/delete", methods=["POST"])

@@ -28,7 +28,7 @@
             <i class="icon ri-user-line" aria-hidden="true"></i>
             <span class="pill-label">حساب من</span>
           </a>
-        {% else %}
+        {% elif config.AUTH_LOGIN_ENABLED or config.AUTH_REGISTER_ENABLED %}
           <a class="header-user-pill header-user-pill--mobile" href="{{ url_for('login') }}">
             <i class="icon ri-login-box-line" aria-hidden="true"></i>
             <span class="pill-label">ورود / ثبت نام</span>
@@ -82,7 +82,7 @@
           <i class="icon ri-logout-box-r-line" aria-hidden="true"></i>
           <span class="pill-label">خروج</span>
         </a>
-      {% else %}
+      {% elif config.AUTH_LOGIN_ENABLED or config.AUTH_REGISTER_ENABLED %}
         <a class="header-user-pill" href="{{ url_for('login') }}">
           <i class="icon ri-login-box-line" aria-hidden="true"></i>
           <span class="pill-label">ورود / ثبت نام</span>
@@ -151,8 +151,7 @@
 
 <script src="{{ url_for('static', filename='js/auto-font.js') }}"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-<script src="{{ url_for('static', filename='js/track-album-ticker.js') }}?v=20260818"></script>
 <script src="{{ url_for('static', filename='js/track-title-ticker.js') }}?v=20260818"></script>
-
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>

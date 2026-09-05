@@ -95,63 +95,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const mobileSearchToggle = document.querySelector('.mobile-search-toggle');
   const mainNav = document.querySelector('#main-navigation');
   const searchForm = document.querySelector('.header-search');
-  const styleRows = document.querySelectorAll('.genre-grid');
-
-  styleRows.forEach((row) => {
-    let isDragging = false;
-    let startX = 0;
-    let startScrollLeft = 0;
-
-    const stopDragging = () => {
-      if (!isDragging) return;
-      isDragging = false;
-      row.classList.remove('is-dragging');
-      document.body.style.userSelect = '';
-      document.body.style.webkitUserSelect = '';
-    };
-
-    const startDragging = (clientX) => {
-      isDragging = true;
-      row.classList.add('is-dragging');
-      startX = clientX;
-      startScrollLeft = row.scrollLeft;
-      document.body.style.userSelect = 'none';
-      document.body.style.webkitUserSelect = 'none';
-    };
-
-    const drag = (clientX) => {
-      if (!isDragging) return;
-      const deltaX = clientX - startX;
-      row.scrollLeft = startScrollLeft - deltaX;
-    };
-
-    row.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      startDragging(event.clientX);
+  
+  // Enhanced genre card hover effects with mouse tracking
+  document.querySelectorAll('.genre-card').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      card.style.setProperty('--mouse-x', x + 'px');
+      card.style.setProperty('--mouse-y', y + 'px');
     });
-
-    row.addEventListener('mousemove', (event) => {
-      if (!isDragging) return;
-      event.preventDefault();
-      drag(event.clientX);
-    });
-
-    row.addEventListener('mouseleave', stopDragging);
-    window.addEventListener('mouseup', stopDragging);
-
-    row.addEventListener('touchstart', (event) => {
-      if (event.touches.length !== 1) return;
-      startDragging(event.touches[0].clientX);
-    }, { passive: false });
-
-    row.addEventListener('touchmove', (event) => {
-      if (!isDragging || event.touches.length !== 1) return;
-      event.preventDefault();
-      drag(event.touches[0].clientX);
-    }, { passive: false });
-
-    row.addEventListener('touchend', stopDragging);
-    row.addEventListener('touchcancel', stopDragging);
   });
 
   function closeMobilePanels() {

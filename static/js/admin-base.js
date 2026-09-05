@@ -1,8 +1,24 @@
 document.addEventListener('DOMContentLoaded', function () {
+  var scrollToTopButton = document.getElementById('admin-scroll-to-top');
   var currentScript = document.currentScript || document.querySelector('script[data-dashboard-url]');
   var dashboardUrl = currentScript ? currentScript.dataset.dashboardUrl : '/admin';
   var dashboardPathname = new URL(dashboardUrl, window.location.origin).pathname;
   var tabs = document.querySelectorAll('.admin-sidebar__tab');
+
+  function toggleScrollButton() {
+    if (!scrollToTopButton) return;
+    if (window.scrollY > 350) {
+      scrollToTopButton.classList.add('visible');
+    } else {
+      scrollToTopButton.classList.remove('visible');
+    }
+  }
+
+  toggleScrollButton();
+  window.addEventListener('scroll', toggleScrollButton, { passive: true });
+  scrollToTopButton?.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 
   function setActiveTab(target) {
     tabs.forEach(function (tab) {
@@ -19,14 +35,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pathname === dashboardPathname || pathname === dashboardPathname + '/') {
       return 'overview';
     }
-    if (pathname.startsWith('/admin/analytics')) {
-      return 'analytics';
-    }
+    
     if (pathname.startsWith('/admin/users')) {
       return 'users';
     }
     if (pathname.startsWith('/admin/content')) {
       return 'content';
+    }
+    if (pathname.startsWith('/admin/growth')) {
+      return 'growth';
     }
     if (pathname.startsWith('/admin/spotify') || pathname.startsWith('/admin/album') || pathname.startsWith('/admin/track')) {
       return 'content';

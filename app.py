@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from datetime import date, datetime, timedelta
 from urllib.parse import urlparse
 
-from flask import Flask, render_template, abort, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, abort, jsonify, request, session, redirect, url_for, current_app
 from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import inspect, text
@@ -1064,13 +1064,41 @@ def get_previous_platform_views(track, platform):
         return None
 
 
+def get_track_platforms_with_links(track):
+    """لیست پلتفرم‌هایی که برای این ترک لینک معتبر دارند را برمی‌گرداند."""
+    if track is None:
+        return []
+
+    platforms = []
+    if getattr(track, "spotify_url", None):
+        platforms.append("spotify")
+
+    youtube_links = [
+        getattr(track, "youtube_url", None),
+        getattr(track, "youtube_url_secondary", None),
+    ]
+    if any(link and str(link).strip() for link in youtube_links):
+        platforms.append("youtube")
+
+    if getattr(track, "soundcloud_url", None):
+        platforms.append("soundcloud")
+
+    return platforms
+
+
 def update_track_views(track, platform):
     """آمار یک پلتفرم را برای یک ترک خاص به‌روزرسانی می‌کند."""
     previous_views = get_previous_platform_views(track, platform)
 
     if platform == "youtube":
-        youtube_links = [track.youtube_url, getattr(track, "youtube_url_secondary", None)]
-        youtube_views = [get_youtube_views(link) for link in youtube_links if link]
+        youtube_links = [
+            getattr(track, "youtube_url", None),
+            getattr(track, "youtube_url_secondary", None),
+        ]
+        youtube_links = [link for link in youtube_links if link and str(link).strip()]
+        if not youtube_links:
+            return False
+        youtube_views = [get_youtube_views(link) for link in youtube_links]
         views = combine_youtube_view_counts(youtube_views)
         if views is None or views <= 0:
             if previous_views is None:
@@ -1078,17 +1106,26 @@ def update_track_views(track, platform):
             views = previous_views
         db.session.add(ViewStat(track_id=track.id, platform="youtube", views=views))
     elif platform == "soundcloud":
-        views = get_soundcloud_plays(track.soundcloud_url)
+        soundcloud_url = (getattr(track, "soundcloud_url", None) or "").strip()
+        if not soundcloud_url:
+            return False
+        views = get_soundcloud_plays(soundcloud_url)
         if views is None or views <= 0:
             if previous_views is None:
                 return False
             views = previous_views
         db.session.add(ViewStat(track_id=track.id, platform="soundcloud", views=views))
     elif platform == "spotify":
-        with SpotifyClient() as client:
-            getspotifyplay = client.get_track(track.spotify_url)
+        spotify_url = (getattr(track, "spotify_url", None) or "").strip()
+        if not spotify_url:
+            return False
         try:
-            views = getspotifyplay.play_count
+            with SpotifyClient() as client:
+                getspotifyplay = client.get_track(spotify_url)
+            try:
+                views = getspotifyplay.play_count
+            except Exception:
+                views = None
         except Exception:
             views = None
 
@@ -1101,17 +1138,35 @@ def update_track_views(track, platform):
         return False
 
     db.session.commit()
-    cleanup_old_view_stats(track_id=track.id)
     return True
 
 
 def update_track_stats(track, platform="all"):
     """Update one platform or all platforms for a track."""
     if platform == "all":
+        valid_platforms = get_track_platforms_with_links(track)
+        if not valid_platforms:
+            return False
+
         updated = False
-        for current_platform in ("spotify", "youtube", "soundcloud"):
+        for current_platform in valid_platforms:
             updated = update_track_views(track, current_platform) or updated
         return updated
+
+    if platform not in {"spotify", "youtube", "soundcloud"}:
+        return False
+
+    if platform == "youtube":
+        youtube_links = [
+            getattr(track, "youtube_url", None),
+            getattr(track, "youtube_url_secondary", None),
+        ]
+        if not any(link and str(link).strip() for link in youtube_links):
+            return False
+    elif platform == "soundcloud" and not (getattr(track, "soundcloud_url", None) or "").strip():
+        return False
+    elif platform == "spotify" and not (getattr(track, "spotify_url", None) or "").strip():
+        return False
 
     return update_track_views(track, platform)
 
@@ -1873,6 +1928,8 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
     app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
+    app.config["AUTH_LOGIN_ENABLED"] = True
+    app.config["AUTH_REGISTER_ENABLED"] = True
 
     db.init_app(app)
     Migrate(app, db)
@@ -1903,6 +1960,98 @@ def register_routes(app):
         all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).all()
         top_tracks = sorted(all_tracks, key=lambda t: t.total_views(), reverse=True)[:10]
 
+        track_ids = [track.id for track in all_tracks]
+        track_stats = {track_id: {"spotify": None, "youtube": None, "soundcloud": None} for track_id in track_ids}
+        previous_stats = {track_id: {"spotify": 0, "youtube": 0, "soundcloud": 0} for track_id in track_ids}
+
+        if track_ids:
+            platform_history = (
+                ViewStat.query
+                .filter(ViewStat.track_id.in_(track_ids))
+                .order_by(ViewStat.track_id.asc(), ViewStat.platform.asc(), ViewStat.fetched_at.desc())
+                .all()
+            )
+
+            for stat in platform_history:
+                track_entry = track_stats.setdefault(stat.track_id, {"spotify": None, "youtube": None, "soundcloud": None})
+                platform_key = stat.platform
+                if platform_key not in track_entry:
+                    continue
+
+                if track_entry[platform_key] is None:
+                    track_entry[platform_key] = stat.views
+                else:
+                    previous_stats.setdefault(stat.track_id, {"spotify": 0, "youtube": 0, "soundcloud": 0})
+                    previous_stats[stat.track_id][platform_key] = stat.views
+
+        track_totals = {
+            track.id: sum(track_stats.get(track.id, {}).get(platform) or 0 for platform in ("spotify", "youtube", "soundcloud"))
+            for track in all_tracks
+        }
+        track_previous_totals = {
+            track.id: sum(previous_stats.get(track.id, {}).get(platform, 0) for platform in ("spotify", "youtube", "soundcloud"))
+            for track in all_tracks
+        }
+
+        tracks_with_any_views = [track for track in all_tracks if (track_totals.get(track.id) or 0) > 0]
+        top_all = sorted(tracks_with_any_views, key=lambda track: track_totals.get(track.id, 0), reverse=True)
+
+        top_spotify = sorted(
+            [track for track in all_tracks if (track_stats.get(track.id, {}).get('spotify') or 0) > 0],
+            key=lambda track: track_stats.get(track.id, {}).get('spotify') or 0,
+            reverse=True,
+        )
+        top_youtube = sorted(
+            [track for track in all_tracks if (track_stats.get(track.id, {}).get('youtube') or 0) > 0],
+            key=lambda track: track_stats.get(track.id, {}).get('youtube') or 0,
+            reverse=True,
+        )
+        top_soundcloud = sorted(
+            [track for track in all_tracks if (track_stats.get(track.id, {}).get('soundcloud') or 0) > 0],
+            key=lambda track: track_stats.get(track.id, {}).get('soundcloud') or 0,
+            reverse=True,
+        )
+
+        top_all_deltas = {}
+        for track in top_all:
+            cur = track_totals.get(track.id, 0) or 0
+            prev = track_previous_totals.get(track.id, 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_all_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_all = [track for track in top_all if (top_all_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        top_spotify_deltas = {}
+        for track in top_spotify:
+            cur = track_stats.get(track.id, {}).get('spotify') or 0
+            prev = previous_stats.get(track.id, {}).get('spotify', 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_spotify_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_spotify = [track for track in top_spotify if (top_spotify_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        top_youtube_deltas = {}
+        for track in top_youtube:
+            cur = track_stats.get(track.id, {}).get('youtube') or 0
+            prev = previous_stats.get(track.id, {}).get('youtube', 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_youtube_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_youtube = [track for track in top_youtube if (top_youtube_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        top_soundcloud_deltas = {}
+        for track in top_soundcloud:
+            cur = track_stats.get(track.id, {}).get('soundcloud') or 0
+            prev = previous_stats.get(track.id, {}).get('soundcloud', 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_soundcloud_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_soundcloud = [track for track in top_soundcloud if (top_soundcloud_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
         # دسته‌بندی ترک‌ها بر اساس ژانر (سبک‌ها)
         genre_map = {}
         for t in all_tracks:
@@ -1926,6 +2075,16 @@ def register_routes(app):
             full_albums=full_albums,
             tracks=all_tracks,
             top_tracks=top_tracks,
+            top_all=top_all,
+            top_spotify=top_spotify,
+            top_youtube=top_youtube,
+            top_soundcloud=top_soundcloud,
+            top_all_deltas=top_all_deltas,
+            top_spotify_deltas=top_spotify_deltas,
+            top_youtube_deltas=top_youtube_deltas,
+            top_soundcloud_deltas=top_soundcloud_deltas,
+            stats_by_track=track_stats,
+            total_by_track=track_totals,
             styles=styles,
             total_albums=len(albums),
             total_tracks=len(all_tracks),
@@ -1987,23 +2146,121 @@ def register_routes(app):
         artist = Artist.query.first()
         if not artist:
             return render_template("setup_needed.html")
-        
-        # تمام ترک‌های هنرمند
+
         all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).order_by(Track.release_date.desc()).all()
-        
-        # مرتب‌سازی بر اساس کل views
-        top_all = sorted(all_tracks, key=lambda t: t.total_views(), reverse=True)
-        
-        # مرتب‌سازی بر اساس هر پلتفرم
-        top_spotify = sorted(all_tracks, key=lambda t: t.latest_stats().get('spotify') or 0, reverse=True)
-        top_youtube = sorted(all_tracks, key=lambda t: t.latest_stats().get('youtube') or 0, reverse=True)
-        top_soundcloud = sorted(all_tracks, key=lambda t: t.latest_stats().get('soundcloud') or 0, reverse=True)
-        
-        return render_template("top_tracks.html", artist=artist, 
-                             top_all=top_all, 
-                             top_spotify=top_spotify,
-                             top_youtube=top_youtube, 
-                             top_soundcloud=top_soundcloud)
+        track_ids = [track.id for track in all_tracks]
+
+        track_stats = {track_id: {"spotify": None, "youtube": None, "soundcloud": None} for track_id in track_ids}
+        previous_stats = {track_id: {"spotify": 0, "youtube": 0, "soundcloud": 0} for track_id in track_ids}
+
+        if track_ids:
+            platform_history = (
+                ViewStat.query
+                .filter(ViewStat.track_id.in_(track_ids))
+                .order_by(ViewStat.track_id.asc(), ViewStat.platform.asc(), ViewStat.fetched_at.desc())
+                .all()
+            )
+
+            for stat in platform_history:
+                track_entry = track_stats.setdefault(stat.track_id, {"spotify": None, "youtube": None, "soundcloud": None})
+                platform_key = stat.platform
+                if platform_key not in track_entry:
+                    continue
+
+                if track_entry[platform_key] is None:
+                    track_entry[platform_key] = stat.views
+                else:
+                    previous_stats.setdefault(stat.track_id, {"spotify": 0, "youtube": 0, "soundcloud": 0})
+                    previous_stats[stat.track_id][platform_key] = stat.views
+
+        track_totals = {
+            track.id: sum(
+                track_stats.get(track.id, {}).get(platform) or 0
+                for platform in ("spotify", "youtube", "soundcloud")
+            )
+            for track in all_tracks
+        }
+        track_previous_totals = {
+            track.id: sum(
+                previous_stats.get(track.id, {}).get(platform, 0)
+                for platform in ("spotify", "youtube", "soundcloud")
+            )
+            for track in all_tracks
+        }
+
+        tracks_with_any_views = [track for track in all_tracks if (track_totals.get(track.id) or 0) > 0]
+        top_all = sorted(tracks_with_any_views, key=lambda track: track_totals.get(track.id, 0), reverse=True)
+
+        top_spotify = sorted(
+            [track for track in all_tracks if (track_stats.get(track.id, {}).get('spotify') or 0) > 0],
+            key=lambda track: track_stats.get(track.id, {}).get('spotify') or 0,
+            reverse=True,
+        )
+        top_youtube = sorted(
+            [track for track in all_tracks if (track_stats.get(track.id, {}).get('youtube') or 0) > 0],
+            key=lambda track: track_stats.get(track.id, {}).get('youtube') or 0,
+            reverse=True,
+        )
+        top_soundcloud = sorted(
+            [track for track in all_tracks if (track_stats.get(track.id, {}).get('soundcloud') or 0) > 0],
+            key=lambda track: track_stats.get(track.id, {}).get('soundcloud') or 0,
+            reverse=True,
+        )
+
+        top_all_deltas = {}
+        for track in top_all:
+            cur = track_totals.get(track.id, 0) or 0
+            prev = track_previous_totals.get(track.id, 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_all_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_all = [track for track in top_all if (top_all_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        top_spotify_deltas = {}
+        for track in top_spotify:
+            cur = track_stats.get(track.id, {}).get('spotify') or 0
+            prev = previous_stats.get(track.id, {}).get('spotify', 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_spotify_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_spotify = [track for track in top_spotify if (top_spotify_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        top_youtube_deltas = {}
+        for track in top_youtube:
+            cur = track_stats.get(track.id, {}).get('youtube') or 0
+            prev = previous_stats.get(track.id, {}).get('youtube', 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_youtube_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_youtube = [track for track in top_youtube if (top_youtube_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        top_soundcloud_deltas = {}
+        for track in top_soundcloud:
+            cur = track_stats.get(track.id, {}).get('soundcloud') or 0
+            prev = previous_stats.get(track.id, {}).get('soundcloud', 0) or 0
+            delta = cur - prev
+            pct = (delta / prev * 100.0) if prev > 0 else 0.0
+            top_soundcloud_deltas[track.id] = {"delta": delta, "pct": pct}
+
+        top_soundcloud = [track for track in top_soundcloud if (top_soundcloud_deltas.get(track.id, {}).get("delta") or 0) != 0]
+
+        return render_template(
+            "top_tracks.html",
+            artist=artist,
+            top_all=top_all,
+            top_spotify=top_spotify,
+            top_youtube=top_youtube,
+            top_soundcloud=top_soundcloud,
+            top_all_deltas=top_all_deltas,
+            top_spotify_deltas=top_spotify_deltas,
+            top_youtube_deltas=top_youtube_deltas,
+            top_soundcloud_deltas=top_soundcloud_deltas,
+            stats_by_track=track_stats,
+            total_by_track=track_totals,
+        )
 
     @app.route("/the-shah")
     def the_shah_tracks():
@@ -2235,9 +2492,12 @@ def register_routes(app):
                     'login.html',
                     error=None,
                     forgot_message=None,
+                    show_recovery_hint=False,
                     recovery_error='لطفاً ایمیل خود را وارد کنید.',
                     recovery_message=None,
                     show_recovery_popup=True,
+                    auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                    auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                 )
 
             if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
@@ -2251,9 +2511,12 @@ def register_routes(app):
                     'login.html',
                     error=None,
                     forgot_message=None,
+                    show_recovery_hint=False,
                     recovery_error='فرمت ایمیل وارد شده صحیح نیست. لطفاً ایمیل را درست وارد کنید.',
                     recovery_message=None,
                     show_recovery_popup=True,
+                    auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                    auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                 )
 
             user = User.query.filter_by(email=email).first()
@@ -2268,9 +2531,12 @@ def register_routes(app):
                     'login.html',
                     error=None,
                     forgot_message=None,
+                    show_recovery_hint=False,
                     recovery_error='ایمیل وارد شده اشتباه است. چنین ایمیلی در سیستم ثبت نشده است.',
                     recovery_message=None,
                     show_recovery_popup=True,
+                    auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                    auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                 )
 
             temp_password = secrets.token_urlsafe(4)
@@ -2286,9 +2552,12 @@ def register_routes(app):
                 'login.html',
                 error=None,
                 forgot_message=None,
+                show_recovery_hint=False,
                 recovery_error=None,
                 recovery_message='ایمیل بازیابی رمز عبور برای شما ارسال شد. لطفاً ایمیل خود را بررسی کنید.',
                 show_recovery_popup=True,
+                auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
             )
 
         return redirect(url_for('login'))
@@ -2305,7 +2574,11 @@ def register_routes(app):
             action = request.form.get('action', 'login')
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-            if action == 'login':
+            if action == 'login' and not current_app.config.get('AUTH_LOGIN_ENABLED', True):
+                error = 'ورود غیرفعال است. برای فعال‌سازی دوباره از پنل مدیریت اقدام کنید.'
+            elif action == 'register' and not current_app.config.get('AUTH_REGISTER_ENABLED', True):
+                error = 'ثبت نام غیرفعال است. برای فعال‌سازی دوباره از پنل مدیریت اقدام کنید.'
+            elif action == 'login':
                 if not username or not password:
                     error = 'نام کاربری و رمز را وارد کنید.'
                 else:
@@ -2323,6 +2596,25 @@ def register_routes(app):
                     else:
                         session['user_id'] = user.id
                         return redirect(url_for('account'))
+            elif action == 'register':
+                if not username:
+                    error = 'نام کاربری را وارد کنید.'
+                elif not email:
+                    error = 'ایمیل را وارد کنید.'
+                elif not password or not request.form.get('confirm_password', ''):
+                    error = 'رمز عبور و تکرار آن را وارد کنید.'
+                elif password != request.form.get('confirm_password', ''):
+                    error = 'رمز عبور و تکرار آن باید مشابه باشند.'
+                elif User.query.filter_by(email=email).first():
+                    error = 'این ایمیل قبلاً ثبت شده است. لطفاً ایمیل دیگری انتخاب کنید.'
+                elif User.query.filter(User.username.ilike(username)).first():
+                    error = 'این نام کاربری قبلاً گرفته شده است. لطفاً نام دیگری انتخاب کنید.'
+                else:
+                    user = User(username=username, email=email, password_hash=generate_password_hash(password))
+                    db.session.add(user)
+                    db.session.commit()
+                    session['user_id'] = user.id
+                    return redirect(url_for('account'))
             elif action == 'forgot_password':
                 if not email:
                     if is_ajax:
@@ -2339,6 +2631,8 @@ def register_routes(app):
                         recovery_error='لطفاً ایمیل خود را وارد کنید.',
                         recovery_message=None,
                         show_recovery_popup=True,
+                        auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                        auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                     )
 
                 if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
@@ -2356,6 +2650,8 @@ def register_routes(app):
                         recovery_error='فرمت ایمیل وارد شده صحیح نیست. لطفاً ایمیل را درست وارد کنید.',
                         recovery_message=None,
                         show_recovery_popup=True,
+                        auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                        auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                     )
 
                 user = User.query.filter_by(email=email).first()
@@ -2374,6 +2670,8 @@ def register_routes(app):
                         recovery_error='ایمیل وارد شده اشتباه است. چنین ایمیلی در سیستم ثبت نشده است.',
                         recovery_message=None,
                         show_recovery_popup=True,
+                        auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                        auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                     )
 
                 temp_password = secrets.token_urlsafe(4)
@@ -2393,27 +2691,9 @@ def register_routes(app):
                     recovery_error=None,
                     recovery_message='ایمیل بازیابی رمز عبور برای شما ارسال شد. لطفاً ایمیل خود را بررسی کنید.',
                     show_recovery_popup=True,
+                    auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+                    auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
                 )
-            else:
-                confirm_password = request.form.get('confirm_password', '')
-                if not username:
-                    error = 'نام کاربری را وارد کنید.'
-                elif not email:
-                    error = 'ایمیل را وارد کنید.'
-                elif not password or not confirm_password:
-                    error = 'رمز عبور و تکرار آن را وارد کنید.'
-                elif password != confirm_password:
-                    error = 'رمز عبور و تکرار آن باید مشابه باشند.'
-                elif User.query.filter_by(email=email).first():
-                    error = 'این ایمیل قبلاً ثبت شده است. لطفاً ایمیل دیگری انتخاب کنید.'
-                elif User.query.filter(User.username.ilike(username)).first():
-                    error = 'این نام کاربری قبلاً گرفته شده است. لطفاً نام دیگری انتخاب کنید.'
-                else:
-                    user = User(username=username, email=email, password_hash=generate_password_hash(password))
-                    db.session.add(user)
-                    db.session.commit()
-                    session['user_id'] = user.id
-                    return redirect(url_for('account'))
 
         return render_template(
             'login.html',
@@ -2423,6 +2703,8 @@ def register_routes(app):
             recovery_error=None,
             recovery_message=None,
             show_recovery_popup=False,
+            auth_login_enabled=current_app.config.get('AUTH_LOGIN_ENABLED', True),
+            auth_register_enabled=current_app.config.get('AUTH_REGISTER_ENABLED', True),
         )
 
     @app.route('/logout')
@@ -2575,7 +2857,8 @@ def register_routes(app):
 
         # مرتب‌سازی ژانرها بر اساس تعداد ترک
         genres = sorted(genre_map.items(), key=lambda kv: len(kv[1]), reverse=True)
-        return render_template("genres.html", artist=artist, genres=genres)
+        total_tracks = len(all_tracks)
+        return render_template("genres.html", artist=artist, genres=genres, total_tracks=total_tracks)
 
     @app.route("/genre/<genre_name>")
     def genre_detail(genre_name):

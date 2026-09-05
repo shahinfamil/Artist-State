@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}پنل مدیریت{% endblock %}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Vazirmatn:wght@300;400;500;600;700;800&family=Estedad:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260813">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}?v=20260716">
 </head>
@@ -25,6 +26,10 @@
 {% endif %}
 
 <main class="admin-main{% if not session.get('admin_logged_in') %} admin-main--login{% endif %}">
+  <button id="admin-scroll-to-top" class="admin-scroll-to-top" type="button" aria-label="بازگشت به بالا" title="بازگشت به بالا">
+    <i class="icon ri-arrow-up-line" aria-hidden="true"></i>
+  </button>
+
   <div class="admin-shell{% if not session.get('admin_logged_in') %} admin-shell--login{% endif %}">
     {% if session.get('admin_logged_in') %}
     <aside class="admin-sidebar" aria-label="منوی مدیریت">
@@ -42,7 +47,7 @@
   <button class="admin-sidebar__tab" type="button" data-tab-target="artist" data-page-url="{{ url_for('admin.artist_form') }}" role="tab" aria-selected="false">ویرایش اطلاعات آرتیست</button>
   <button class="admin-sidebar__tab" type="button" data-tab-target="wikipedia-info" data-page-url="{{ url_for('admin.wikipedia_info_page') }}" role="tab" aria-selected="false">اطلاعات ویکی‌پدیا</button>
   <button class="admin-sidebar__tab" type="button" data-tab-target="content" data-page-url="{{ url_for('admin.dashboard_content') }}" role="tab" aria-selected="false">آلبوم‌ها و آهنگ‌ها</button>
-  <button class="admin-sidebar__tab" type="button" data-tab-target="analytics" data-page-url="{{ url_for('admin.dashboard_analytics') }}" role="tab" aria-selected="false">آنالیز بازدیدها</button>
+  <button class="admin-sidebar__tab" type="button" data-tab-target="growth" data-page-url="{{ url_for('admin.growth_page') }}" role="tab" aria-selected="false">رشد آهنگ‌ها</button>
   <button class="admin-sidebar__tab" type="button" data-tab-target="users" data-page-url="{{ url_for('admin.dashboard_users') }}" role="tab" aria-selected="false">کاربران</button>
 </nav>
 {% endblock %}

@@ -1,67 +1,61 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="album-hero">
-  <div class="container album-hero-inner">
-    <img src="{{ album.cover_url }}" class="album-hero-cover" alt="{{ album.title }}">
-    <div class="album-hero-info">
-      <p class="eyebrow">
-        {{ album.title }} | 
-        {% if album.release_type == 'single' %}
-          Single
-        {% elif album.release_type == 'ep' %}
-          EP
-        {% elif album.release_type == 'album' %}
-          Album
-        {% elif tracks|length <= 1 %}
-          Single
-        {% elif tracks|length <= 4 %}
-          Ep
-        {% else %}
-          Album
-        {% endif %}
-      </p>
-      <h1>{{ album.title }}</h1>
-    </div>
-  </div>
-</section>
+{% set release_kind = 'Single' if album.release_type == 'single' else 'EP' if album.release_type == 'ep' else 'Album' if album.release_type == 'album' else 'Single' if tracks|length <= 1 else 'EP' if tracks|length <= 4 else 'Album' %}
+<section class="album-page">
+  <div class="container album-page__shell">
+    <div class="album-page__hero">
+      <div class="album-page__cover-wrap">
+        <img src="{{ album.cover_url }}" class="album-page__cover" alt="{{ album.title }}">
+      </div>
 
-<section class="section">
-  <div class="container">
-    <div class="track-list">
-      {% for track in tracks %}
-      {% set stats = track.latest_stats() %}
-      {% set total = track.total_views() %}
-      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row">
-        <span class="track-rank">{{ "%02d"|format(loop.index) }}</span>
-        <div class="track-cover-wrap">
-          <img class="track-cover" src="{{ track.cover_url }}" alt="">
-          {% if track.is_the_shah %}
-          <span class="cover-badge" aria-label="The Shah">
-            <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
-          </span>
-          {% endif %}
+      <div class="album-page__info">
+        <p class="album-page__eyebrow">{{ release_kind }}</p>
+        <h1 class="album-page__title">{{ album.title }}</h1>
+        <div class="album-page__meta">
+          <span>{{ album.artist_name or 'Shahin Najafi' }}</span>
+          <span>•</span>
+          <span>{{ album.release_date|format_date_short if album.release_date else '—' }}</span>
+          <span>•</span>
+          <span>{{ tracks|length }} song{% if tracks|length != 1 %}s{% endif %}</span>
         </div>
-        <span class="track-info">
-          <span class="track-title-row">
-            <span class="track-title left">{{ track.title }}</span>
+      </div>
+    </div>
+
+    <div class="album-page__table">
+      <div class="album-page__header-row">
+        <span class="album-page__col-time" aria-label="Duration">
+          <span>Time</span>
+        </span>
+        <span class="album-page__col-title">
+          <span>Title</span>
+        </span>
+      </div>
+
+      {% for track in tracks %}
+      {% set feature_names = track.collaborator_names %}
+      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="album-page__track">
+        <span class="album-page__track-index">{{ loop.index }}</span>
+
+        <div class="album-page__track-main">
+          <div class="album-page__track-heading">
+            <span class="album-page__track-title">{{ track.title }}</span>
+            {% if feature_names %}
+              <span class="album-page__feature-inline">
+                <span class="album-page__tag">Feat</span>
+                <span>{{ feature_names|join(', ') }}</span>
+              </span>
+            {% endif %}
+          </div>
+
+          <span class="album-page__track-subtitle">
+            {% if track.lyricist_display %}
+              <span class="album-page__tag">Lyric</span>
+              <span>{{ track.lyricist_display }}</span>
+            {% endif %}
           </span>
-          {% set feature_names = track.collaborator_names %}
-          {% if feature_names and track.lyricist_display %}
-          <span class="track-album date-display font-en"> Lyric: {{ track.lyricist_display }} | Feat: {{ feature_names|join(', ') }}</span>
-          {% elif feature_names %}
-          <span class="track-album date-display font-en">Feat: {{ feature_names|join(', ') }}</span>
-          {% endif %}
-        </span>
-        <span class="track-bars" title="سهم هر پلتفرم از کل ویوها">
-          {% set sp = stats.spotify or 0 %}
-          {% set yt = stats.youtube or 0 %}
-          {% set sc = stats.soundcloud or 0 %}
-          {% set t = (sp + yt + sc) or 1 %}
-          <span class="bar bar-spotify" style="width:{{ (sp/t*100)|round(1) }}%"></span>
-          <span class="bar bar-youtube" style="width:{{ (yt/t*100)|round(1) }}%"></span>
-          <span class="bar bar-soundcloud" style="width:{{ (sc/t*100)|round(1) }}%"></span>
-        </span>
-        <span class="track-total">{{ total|format_number }}<small>ویو کل</small></span>
+        </div>
+
+        <span class="album-page__track-time">{{ track.duration or '3:22' }}</span>
       </a>
       {% endfor %}
     </div>

@@ -1,31 +1,63 @@
 {% extends "base.html" %}
 {% block title %}ژانرها — {{ artist.name }}{% endblock %}
 {% block content %}
-<section class="album-hero">
-  <div class="container">
-    <p class="eyebrow">دسته‌بندی آهنگ</p>
-    <h1>سبک‌ها</h1>
-    <p class="muted">ترک‌های {{ artist.name }} بر اساس سبک دسته‌بندی شده‌اند.</p>
+<section class="genre-hero">
+  <div class="container genre-hero__inner">
+    <div class="genre-hero__copy">
+      <p class="eyebrow">دسته‌بندی آهنگ</p>
+      <h1>سبک‌ها و حال‌های موسیقی</h1>
+      <p class="muted">ترک‌های {{ artist.name }} در این صفحه به‌صورت دسته‌ای و هنری، به سبک‌های مختلف تقسیم شده‌اند.</p>
+    </div>
+    <div class="genre-hero__stats">
+      <div class="genre-stat">
+        <span class="genre-stat__value" data-auto-lang="en">{{ genres|length }}</span>
+        <span class="genre-stat__label">سبک</span>
+      </div>
+      <div class="genre-stat">
+        <span class="genre-stat__value" data-auto-lang="en">{{ total_tracks or 0 }}</span>
+        <span class="genre-stat__label">آهنگ</span>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="section">
+<section class="section section-genre-grid">
   <div class="container">
     <div class="genre-grid">
       {% for genre_name, tracks in genres %}
       <a href="{{ url_for('genre_detail', genre_name=genre_name) }}" class="genre-card">
-        <div class="genre-card-cover-stack">
-          {% for t in tracks[:3] %}
-            <img src="{{ t.cover_url }}" alt="">
+        <span class="genre-card__count" aria-label="{{ tracks|length }} آهنگ">{{ tracks|length }}</span>
+        <div class="genre-card-cover-stack" aria-label="{{ genre_name }}">
+          {% for t in tracks[:5] %}
+            <img src="{{ t.cover_url }}" alt="{{ genre_name }}">
           {% endfor %}
         </div>
-        <h3>{{ genre_name }}</h3>
-        <p class="muted">{{ tracks|length }} آهنگ</p>
+        <div class="genre-card__overlay">
+          <span class="genre-card__title">{{ genre_name }}</span>
+        </div>
       </a>
       {% else %}
       <p class="empty-state">هنوز هیچ آهنگ سبک ندارد.</p>
       {% endfor %}
     </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.genre-card-cover-stack').forEach(function (stack) {
+          const images = Array.from(stack.querySelectorAll('img'));
+          if (!images.length) return;
+
+          const activeIndex = Math.floor(Math.random() * images.length);
+          images.forEach(function (img, index) {
+            const isActive = index === activeIndex;
+            img.classList.toggle('is-active', isActive);
+            img.style.opacity = '1';
+            img.style.filter = isActive ? 'saturate(1.1) contrast(1.04)' : 'blur(0.5px) brightness(0.62)';
+            img.style.transform = isActive ? 'translate(0, 0) scale(1.02) rotate(0deg)' : img.style.transform;
+          });
+        });
+      });
+    </script>
   </div>
 </section>
 {% endblock %}
