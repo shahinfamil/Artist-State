@@ -24,4 +24,4 @@ jobs:
       - name: Run update
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python app.py update_views
+        run: python -u app.py update_views
