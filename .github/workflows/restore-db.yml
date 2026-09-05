@@ -28,8 +28,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-18
           /usr/lib/postgresql/18/bin/pg_restore --version
+          /usr/lib/postgresql/18/bin/psql --version
 
-      - name: Restore into Railway Postgres
+      - name: Reset schema and restore
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
@@ -37,11 +38,15 @@ jobs:
             echo "ERROR: DATABASE_URL secret is empty"
             exit 1
           fi
+
+          echo "Dropping and recreating public schema..."
+          /usr/lib/postgresql/18/bin/psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+          echo "Restoring backup..."
           /usr/lib/postgresql/18/bin/pg_restore \
             --no-owner \
             --no-acl \
-            --clean \
-            --if-exists \
             -d "$DATABASE_URL" \
             data_backup.dump
+
           echo "=== RESTORE DONE ==="
