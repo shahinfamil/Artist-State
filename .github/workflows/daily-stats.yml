@@ -2,7 +2,7 @@ name: Daily Stats Update
 
 on:
   schedule:
-    - cron: '30 0 * * *'
+    - cron: '0 1 * * *'
   workflow_dispatch:
 
 jobs:
@@ -24,4 +24,4 @@ jobs:
       - name: Run update
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -u app.py update_views
+        run: python app.py update_views
