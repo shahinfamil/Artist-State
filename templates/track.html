@@ -167,7 +167,8 @@
 
 {% if track.music_video_url or track.spotify_url or track.soundcloud_url or track.youtube_url or track.youtube_url_secondary %}
 {% set has_music_video = track.music_video_url is not none %}
-{% set youtube_link = track.music_video_url if has_music_video else track.youtube_url or track.youtube_url_secondary %}
+{% set primary_youtube_url = track.youtube_url if track.youtube_url else track.youtube_url_secondary %}
+{% set youtube_link = track.music_video_url if has_music_video else primary_youtube_url %}
 {% set youtube_video_id = youtube_link.split('v=')[-1].split('&')[0] if youtube_link and 'v=' in youtube_link else (youtube_link.split('/')[-1].split('?')[0] if youtube_link and 'youtu.be/' in youtube_link else None) %}
 {% set spotify_id = track.spotify_url.split('/track/')[1].split('?')[0] if track.spotify_url and '/track/' in track.spotify_url else None %}
 {% set soundcloud_embed_url = track.soundcloud_url|urlencode if track.soundcloud_url else None %}
@@ -209,16 +210,18 @@
                 <h3>پخش در یوتیوب</h3>
                 {% endif %}
               </div>
-              <a class="player-brand-badge player-brand-badge--youtube" href="{{ youtube_link }}" target="_blank" rel="noreferrer noopener">باز کردن در یوتیوب
-                <i class="icon ri-youtube-fill" aria-hidden="true"></i>
-              </a>
+              <div class="player-badge-stack">
+                <span class="player-view-badge player-view-badge--youtube">
+                  {{ track_youtube_views(track)|format_number }}
+                </span>
+                <a class="player-brand-badge player-brand-badge--youtube" href="{{ youtube_link }}" target="_blank" rel="noreferrer noopener">باز کردن در یوتیوب
+                  <i class="icon ri-youtube-fill" aria-hidden="true"></i>
+                </a>
+              </div>
             </div>
             {% if youtube_video_id %}
             <div class="youtube-player-wrapper large">
               <iframe src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0&showinfo=0" title="پخش ویدیو" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-            </div>
-            <div class="video-player-meta">
-              <p class="muted">پخش مستقیم محتوا از YouTube؛ اگر لینک حاوی ویدیو باشد، پلیر درون‌سایت آماده پخش است.</p>
             </div>
             {% else %}
             <div class="video-player-meta">
@@ -238,9 +241,14 @@
                 <p class="eyebrow">پخش اسپاتیفای</p>
                 <h3>پخش مستقیم آهنگ</h3>
               </div>
-              <a class="player-brand-badge player-brand-badge--spotify" href="{{ track.spotify_url }}" target="_blank" rel="noreferrer noopener">باز کردن در اسپاتیفای
-                <i class="icon ri-spotify-fill" aria-hidden="true"></i>
-              </a>
+              <div class="player-badge-stack">
+                <span class="player-view-badge player-view-badge--spotify">
+                  {{ stats.spotify|format_number }}
+                </span>
+                <a class="player-brand-badge player-brand-badge--spotify" href="{{ track.spotify_url }}" target="_blank" rel="noreferrer noopener">باز کردن در اسپاتیفای
+                  <i class="icon ri-spotify-fill" aria-hidden="true"></i>
+                </a>
+              </div>
             </div>
             <div class="spotify-player-wrapper spotify-player-wrapper--expanded">
               <iframe data-testid="embed-iframe" class="platform-iframe" title="پخش در اسپاتیفای" src="https://open.spotify.com/embed/track/{{ spotify_id }}" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
@@ -258,9 +266,14 @@
                 <p class="eyebrow">پخش ساندکلود</p>
                 <h3>پلیر ساندکلود</h3>
               </div>
-              <a class="player-brand-badge player-brand-badge--soundcloud" href="{{ track.soundcloud_url }}" target="_blank" rel="noreferrer noopener">باز کردن در ساندکلود
-                <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
-              </a>
+              <div class="player-badge-stack">
+                <span class="player-view-badge player-view-badge--soundcloud">
+                  {{ stats.soundcloud|format_number }}
+                </span>
+                <a class="player-brand-badge player-brand-badge--soundcloud" href="{{ track.soundcloud_url }}" target="_blank" rel="noreferrer noopener">باز کردن در ساندکلود
+                  <i class="icon ri-soundcloud-fill" aria-hidden="true"></i>
+                </a>
+              </div>
             </div>
             <div class="soundcloud-player-wrapper">
               <iframe width="100%" height="100%" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url={{ soundcloud_embed_url }}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&visual=true"></iframe>

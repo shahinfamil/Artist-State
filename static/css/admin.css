@@ -461,6 +461,7 @@
 .analytics-metric-card__label { color: rgba(255,255,255,0.7); font-size: 0.84rem; }
 .admin-growth-table-wrap {
   overflow-x: auto;
+  text-align-last: center;
   margin-top: 18px;
 }
 .admin-growth-table {
@@ -1678,6 +1679,27 @@
 }
 .date-select {
   width: 100%;
+
+/* Growth table styles (moved from static/css/admin-growth.css) */
+.admin-card-card-wrap { display: flex; align-items: center; gap: 0.5rem; }
+.admin-card-card-wrap .admin-card { flex: 1 1 auto; }
+.admin-card { position: relative; }
+.admin-card .admin-stat-card__value { display: block; text-align: center; }
+/* Left-align table headers and cells for growth table */
+.admin-growth-table th,
+.admin-growth-table td { text-align: center; }
+
+/* Stabilize table layout: use natural layout but set sensible min-widths */
+.admin-growth-table { width: 100%; border-collapse: collapse; }
+.admin-growth-table th, .admin-growth-table td { padding: 0.5rem 0.75rem; vertical-align: middle; }
+.admin-growth-table thead th { font-weight: 600; }
+.admin-growth-table td:first-child { min-width: 220px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-growth-table td.font-en, .admin-growth-table td .font-en { text-align: center; }
+.admin-growth-table th:nth-child(2), .admin-growth-table td:nth-child(2) { min-width: 120px; }
+.admin-growth-table th:nth-child(3), .admin-growth-table td:nth-child(3) { min-width: 100px; }
+.admin-growth-table th:nth-child(4), .admin-growth-table td:nth-child(4) { min-width: 90px; }
+.admin-growth-table th:nth-child(5), .admin-growth-table td:nth-child(5) { min-width: 90px; }
+.admin-growth-table th:nth-child(6), .admin-growth-table td:nth-child(6) { min-width: 90px; }
 }
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 900px) {

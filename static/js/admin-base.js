@@ -4,6 +4,57 @@ document.addEventListener('DOMContentLoaded', function () {
   var dashboardUrl = currentScript ? currentScript.dataset.dashboardUrl : '/admin';
   var dashboardPathname = new URL(dashboardUrl, window.location.origin).pathname;
   var tabs = document.querySelectorAll('.admin-sidebar__tab');
+  var notificationMenu = document.querySelector('.admin-notification-menu');
+  var notificationToggle = document.querySelector('.admin-notification-toggle');
+  var notificationItems = document.querySelectorAll('.admin-notification-item');
+  var storageKey = 'admin-notification-read-state';
+
+  function getReadState() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function setReadState(nextState) {
+    localStorage.setItem(storageKey, JSON.stringify(nextState));
+  }
+
+  if (notificationToggle && notificationMenu) {
+    notificationToggle.addEventListener('click', function () {
+      var isOpen = notificationMenu.classList.toggle('is-open');
+      notificationToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!notificationMenu.contains(event.target)) {
+        notificationMenu.classList.remove('is-open');
+        notificationToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  notificationItems.forEach(function (item) {
+    var input = item.querySelector('.admin-notification-check');
+    var key = item.dataset.notificationKey;
+    if (!input || !key) {
+      return;
+    }
+
+    var readState = getReadState();
+    if (readState[key]) {
+      input.checked = true;
+      item.classList.add('is-read');
+    }
+
+    input.addEventListener('change', function () {
+      var nextState = getReadState();
+      nextState[key] = input.checked;
+      setReadState(nextState);
+      item.classList.toggle('is-read', input.checked);
+    });
+  });
 
   function toggleScrollButton() {
     if (!scrollToTopButton) return;

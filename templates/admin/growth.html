@@ -20,33 +20,41 @@
       <a href="{{ url_for('admin.growth_page', platform='soundcloud') }}" class="btn btn-ghost js-growth-platform-filter js-growth-platform-filter--soundcloud {% if analytics_platform == 'soundcloud' %}is-active{% endif %}" data-platform="soundcloud" aria-pressed="{% if analytics_platform == 'soundcloud' %}true{% else %}false{% endif %}" style="padding: 0.55rem 0.9rem; border-radius: 999px;">ساندکلود</a>
     </div>
     <section class="admin-summary-grid-4 admin-summary-grid--wide">
-      <div class="admin-card admin-stat-card admin-stat-card--highlight">
-        <div class="admin-stat-card__top">
-          <span class="admin-stat-card__label">رشد روزانه</span>
+      <div class="admin-card-card-wrap" data-window-days="1" data-from="{{ growth_from_day_iso }}" data-to="{{ growth_to_day_iso }}">
+        <div class="admin-card admin-stat-card admin-stat-card--highlight">
+          <div class="admin-stat-card__top">
+            <span class="admin-stat-card__label">رشد روزانه</span>
+          </div>
+          <span class="admin-stat-card__value font-en">{{ '{:,}'.format(growth.growth_day_abs|default(0)) }}</span>
+          <p class="admin-stat-card__description">{{ growth_range_day }}</p>
         </div>
-        <span class="admin-stat-card__value font-en">{{ growth.growth_day_abs|default(0) }}</span>
-        <p class="admin-stat-card__description">{{ growth.growth_day_pct|default(0) }}% نسبت به آخرین آپدیت قبلی</p>
       </div>
-      <div class="admin-card admin-stat-card admin-stat-card--accent">
-        <div class="admin-stat-card__top">
-          <span class="admin-stat-card__label">رشد هفتگی</span>
+      <div class="admin-card-card-wrap" data-window-days="7" data-from="{{ growth_from_week_iso }}" data-to="{{ growth_to_week_iso }}">
+        <div class="admin-card admin-stat-card admin-stat-card--accent">
+          <div class="admin-stat-card__top">
+            <span class="admin-stat-card__label">رشد هفتگی</span>
+          </div>
+          <span class="admin-stat-card__value font-en">{{ '{:,}'.format(growth.growth_week_abs|default(0)) }}</span>
+          <p class="admin-stat-card__description">{{ growth_range_week }}</p>
         </div>
-        <span class="admin-stat-card__value font-en">{{ growth.growth_week_abs|default(0) }}</span>
-        <p class="admin-stat-card__description">{{ growth.growth_week_pct|default(0) }}% نسبت به 7 روز گذشته</p>
       </div>
-      <div class="admin-card admin-stat-card admin-stat-card--muted">
-        <div class="admin-stat-card__top">
-          <span class="admin-stat-card__label">رشد ماهانه</span>
+      <div class="admin-card-card-wrap" data-window-days="30" data-from="{{ growth_from_month_iso }}" data-to="{{ growth_to_month_iso }}">
+        <div class="admin-card admin-stat-card admin-stat-card--muted">
+          <div class="admin-stat-card__top">
+            <span class="admin-stat-card__label">رشد ماهانه</span>
+          </div>
+          <span class="admin-stat-card__value font-en">{{ '{:,}'.format(growth.growth_month_abs|default(0)) }}</span>
+          <p class="admin-stat-card__description">{{ growth_range_month }}</p>
         </div>
-        <span class="admin-stat-card__value font-en">{{ growth.growth_month_abs|default(0) }}</span>
-        <p class="admin-stat-card__description">{{ growth.growth_month_pct|default(0) }}% نسبت به 30 روز گذشته</p>
       </div>
-      <div class="admin-card admin-stat-card admin-stat-card--contrast">
-        <div class="admin-stat-card__top">
-          <span class="admin-stat-card__label">رشد سالانه</span>
+      <div class="admin-card-card-wrap" data-window-days="365" data-from="{{ growth_from_year_iso }}" data-to="{{ growth_to_year_iso }}">
+        <div class="admin-card admin-stat-card admin-stat-card--contrast">
+          <div class="admin-stat-card__top">
+            <span class="admin-stat-card__label">رشد سالانه</span>
+          </div>
+          <span class="admin-stat-card__value font-en">{{ '{:,}'.format(growth.growth_year_abs|default(0)) }}</span>
+          <p class="admin-stat-card__description">{{ growth_range_year }}</p>
         </div>
-        <span class="admin-stat-card__value font-en">{{ growth.growth_year_abs|default(0) }}</span>
-        <p class="admin-stat-card__description">{{ growth.growth_year_pct|default(0) }}% نسبت به 365 روز گذشته</p>
       </div>
     </section>
 
@@ -54,35 +62,31 @@
       <table class="admin-growth-table">
         <thead>
           <tr>
-            <th>ترک</th>
-            <th class="font-en">کل بازدید</th>
-            <th>روزانه</th>
-            <th>هفتگی</th>
-            <th>ماهانه</th>
-            <th>سالانه</th>
+            <th>Views</th>
+            <th>Yearly</th>
+            <th>Monthly</th>
+            <th>Weekly</th>
+            <th>Daily</th>
+            <th>Name</th>
           </tr>
         </thead>
         <tbody>
           {% for item in per_track_growth %}
           <tr>
-            <td>{{ item.title }}</td>
             <td class="font-en">{{ item.latest }}</td>
             <td>
-              <span class="growth-value {% if item.growth_day_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_day_abs }}</span>
-              <small class="font-en">({{ item.growth_day_pct }}%)</small>
-            </td>
-            <td>
-              <span class="growth-value {% if item.growth_week_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_week_abs }}</span>
-              <small class="font-en">({{ item.growth_week_pct }}%)</small>
+              <span class="growth-value {% if item.growth_year_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_year_abs }}</span>
             </td>
             <td>
               <span class="growth-value {% if item.growth_month_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_month_abs }}</span>
-              <small class="font-en">({{ item.growth_month_pct }}%)</small>
             </td>
             <td>
-              <span class="growth-value {% if item.growth_year_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_year_abs }}</span>
-              <small class="font-en">({{ item.growth_year_pct }}%)</small>
+              <span class="growth-value {% if item.growth_week_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_week_abs }}</span>
             </td>
+            <td>
+              <span class="growth-value {% if item.growth_day_abs >= 0 %}is-positive{% else %}is-negative{% endif %}">{{ item.growth_day_abs }}</span>
+            </td>
+            <td>{{ item.title }}</td>
           </tr>
           {% else %}
           <tr>
@@ -93,86 +97,9 @@
       </table>
     </div>
   </div>
-</div>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const container = document.querySelector('.admin-container');
-    if (!container) return;
+  </div>
 
-    function syncFilterState() {
-      const currentPlatform = new URLSearchParams(window.location.search).get('platform') || '';
-      document.querySelectorAll('.js-growth-platform-filter').forEach(function (button) {
-        const expected = button.dataset.platform || '';
-        const isActive = currentPlatform === expected;
-        button.classList.toggle('is-active', isActive);
-        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-growth.css') }}">
+  <script src="{{ url_for('static', filename='js/admin-growth.js') }}" defer></script>
 
-        button.style.borderColor = isActive ? '' : 'rgba(255,255,255,0.12)';
-        button.style.color = '#f2f1ed';
-        button.style.background = isActive ? '' : 'rgba(255,255,255,0.02)';
-
-        if (button.classList.contains('js-growth-platform-filter--spotify')) {
-          button.style.borderColor = isActive ? '#34d399' : 'rgba(52, 211, 153, 0.45)';
-          button.style.background = isActive ? 'rgba(52, 211, 153, 0.18)' : 'rgba(52, 211, 153, 0.06)';
-        }
-        if (button.classList.contains('js-growth-platform-filter--youtube')) {
-          button.style.borderColor = isActive ? '#f87171' : 'rgba(248, 113, 113, 0.45)';
-          button.style.background = isActive ? 'rgba(248, 113, 113, 0.18)' : 'rgba(248, 113, 113, 0.06)';
-        }
-        if (button.classList.contains('js-growth-platform-filter--soundcloud')) {
-          button.style.borderColor = isActive ? '#fbbf24' : 'rgba(251, 191, 36, 0.45)';
-          button.style.background = isActive ? 'rgba(251, 191, 36, 0.18)' : 'rgba(251, 191, 36, 0.06)';
-        }
-        if (button.classList.contains('js-growth-platform-filter--all')) {
-          button.style.borderColor = isActive ? '#d8b46a' : 'rgba(216, 180, 106, 0.45)';
-          button.style.background = isActive ? 'rgba(216, 180, 106, 0.18)' : 'rgba(216, 180, 106, 0.06)';
-        }
-      });
-    }
-
-    function replaceGrowthContent(url) {
-      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error('Failed to load growth filter');
-          }
-          return response.text();
-        })
-        .then(function (html) {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const nextContainer = doc.querySelector('.admin-container');
-          if (!nextContainer) {
-            window.location.href = url;
-            return;
-          }
-
-          container.innerHTML = nextContainer.innerHTML;
-          history.pushState({ path: url }, '', url);
-          syncFilterState();
-        })
-        .catch(function () {
-          window.location.href = url;
-        });
-    }
-
-    document.addEventListener('click', function (event) {
-      const button = event.target.closest('.js-growth-platform-filter');
-      if (!button) return;
-
-      event.preventDefault();
-      const url = button.getAttribute('href');
-      if (!url) return;
-
-      replaceGrowthContent(url);
-    });
-
-    window.addEventListener('popstate', function () {
-      const currentUrl = window.location.href;
-      replaceGrowthContent(currentUrl);
-    });
-
-    syncFilterState();
-  });
-</script>
-{% endblock %}
+  {% endblock %}

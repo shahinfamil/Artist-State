@@ -435,45 +435,70 @@ def build_analytics_context():
 
     active_platforms = [platform_filter] if platform_filter else ["spotify", "youtube", "soundcloud"]
 
+    # Build an in-memory map of stats per (track_id, platform) ordered by fetched_at asc
+    stats_map = {}
+    for row in analytics_rows:
+        key = (row.track_id, row.platform)
+        stats_map.setdefault(key, []).append(row)
+
     def _views_at_or_before(track_id, cutoff, platforms=None):
         selected_platforms = platforms or active_platforms
         total = 0
         for platform in selected_platforms:
-            stat = (
-                ViewStat.query.filter_by(track_id=track_id, platform=platform)
-                .filter(ViewStat.fetched_at <= cutoff)
-                .order_by(ViewStat.fetched_at.desc())
-                .first()
-            )
-            if stat and stat.views:
-                total += int(stat.views)
+            lst = stats_map.get((track_id, platform), [])
+            # lst is ordered by fetched_at descending in analytics_rows; ensure ascending
+            if lst and getattr(lst[0], 'fetched_at', None) and len(lst) > 1 and lst[0].fetched_at > lst[-1].fetched_at:
+                lst_sorted = list(sorted(lst, key=lambda r: r.fetched_at))
+            else:
+                lst_sorted = lst
+            chosen = None
+            for r in reversed(lst_sorted):
+                if r.fetched_at <= cutoff:
+                    chosen = r
+                    break
+            if chosen and chosen.views:
+                total += int(chosen.views)
         return total
 
     def _last_previous_views(track_id, platform, latest_fetched_at=None):
-        query = ViewStat.query.filter_by(track_id=track_id, platform=platform)
-        if latest_fetched_at is not None:
-            query = query.filter(ViewStat.fetched_at < latest_fetched_at)
-        stat = query.order_by(ViewStat.fetched_at.desc()).first()
-        if not stat:
+        if latest_fetched_at is None:
             return 0
-        return int(stat.views or 0)
+        latest_day = latest_fetched_at.date() if isinstance(latest_fetched_at, datetime) else latest_fetched_at
+        lst = stats_map.get((track_id, platform), [])
+        if not lst:
+            return 0
+        lst_sorted = list(sorted(lst, key=lambda r: r.fetched_at))
+        # find most recent stat with date strictly before latest_day
+        for r in reversed(lst_sorted):
+            try:
+                if r.fetched_at.date() < latest_day:
+                    return int(r.views or 0)
+            except Exception:
+                if r.fetched_at < latest_fetched_at:
+                    return int(r.views or 0)
+        return 0
 
     def _growth_in_recent_window(track_id, days, platforms=None):
         selected_platforms = platforms or active_platforms
         window_start = now - timedelta(days=days)
         total = 0
         for platform in selected_platforms:
-            stats = (
-                ViewStat.query.filter_by(track_id=track_id, platform=platform)
-                .filter(ViewStat.fetched_at >= window_start)
-                .order_by(ViewStat.fetched_at.asc())
-                .all()
-            )
-            if not stats:
+            lst = stats_map.get((track_id, platform), [])
+            if not lst:
                 continue
-            baseline = int(stats[0].views or 0)
-            latest = int(stats[-1].views or 0)
-            total += latest - baseline
+            lst_sorted = list(sorted(lst, key=lambda r: r.fetched_at))
+            # find first >= window_start and last
+            first = None
+            last = None
+            for r in lst_sorted:
+                if r.fetched_at >= window_start and first is None:
+                    first = r
+                if r.fetched_at >= window_start:
+                    last = r
+            if first and last:
+                baseline = int(first.views or 0)
+                latest = int(last.views or 0)
+                total += latest - baseline
         return total
 
     def _window_based_growth(track_id, days, platforms=None):
@@ -517,12 +542,10 @@ def build_analytics_context():
         latest_platform_views = {}
         previous_total = 0
         for platform in active_platforms:
-            latest_stat = (
-                ViewStat.query.filter_by(track_id=track.id, platform=platform)
-                .order_by(ViewStat.fetched_at.desc())
-                .first()
-            )
-            if latest_stat:
+            lst = stats_map.get((track.id, platform), [])
+            if lst:
+                lst_sorted = list(sorted(lst, key=lambda r: r.fetched_at))
+                latest_stat = lst_sorted[-1]
                 latest_platform_views[platform] = int(latest_stat.views or 0)
                 previous_platform_views = _last_previous_views(track.id, platform, latest_stat.fetched_at)
                 previous_total += previous_platform_views
@@ -625,6 +648,25 @@ def build_analytics_context():
 
     
 
+    def _persian_month_name(dt):
+        months = [
+            "ژانویه", "فوریه", "مارس", "آوریل", "مه", "ژوئن",
+            "ژوئیه", "اوت", "سپتامبر", "اکتبر", "نوامبر", "دسامبر",
+        ]
+        try:
+            return months[dt.month - 1]
+        except Exception:
+            return dt.strftime("%B")
+
+    def _format_range(start_date, end_date):
+        return f"{start_date.day} {_persian_month_name(start_date)} تا {end_date.day} {_persian_month_name(end_date)}"
+
+    today = datetime.now().date()
+    growth_range_day = _format_range(today - timedelta(days=1), today)
+    growth_range_week = _format_range(today - timedelta(days=7), today)
+    growth_range_month = _format_range(today - timedelta(days=30), today)
+    growth_range_year = _format_range(today - timedelta(days=365), today)
+
     analytics_context = {
         "analytics_summary": analytics_summary,
         "analytics_table": analytics_table,
@@ -639,12 +681,56 @@ def build_analytics_context():
         "selected_track_title": selected_track_title,
         "per_track_growth": per_track_growth,
         "aggregate_growth": aggregate_growth,
+        "growth_range_day": growth_range_day,
+        "growth_range_week": growth_range_week,
+        "growth_range_month": growth_range_month,
+        "growth_range_year": growth_range_year,
+        # ISO date bounds for linking to filtered view
+        "growth_from_day_iso": (today - timedelta(days=1)).isoformat(),
+        "growth_to_day_iso": today.isoformat(),
+        "growth_from_week_iso": (today - timedelta(days=7)).isoformat(),
+        "growth_to_week_iso": today.isoformat(),
+        "growth_from_month_iso": (today - timedelta(days=30)).isoformat(),
+        "growth_to_month_iso": today.isoformat(),
+        "growth_from_year_iso": (today - timedelta(days=365)).isoformat(),
+        "growth_to_year_iso": today.isoformat(),
     }
 
     if request.args.get("partial") == "1":
         return analytics_context, render_template("admin/partials/analytics_panel.html", **analytics_context)
 
     return analytics_context, None
+
+
+
+@admin_bp.route('/growth.json')
+@login_required
+def growth_json():
+    """Return JSON payload with aggregate and per-track growth metrics for client-side rendering."""
+    ctx, _ = build_analytics_context()
+    # support client-side paging/limits
+    try:
+        limit = int(request.args.get('limit') or 0)
+    except Exception:
+        limit = 0
+
+    payload = {
+        "aggregate_growth": ctx.get("aggregate_growth", {}),
+        "per_track_growth": (ctx.get("per_track_growth", [])[:limit] if limit and isinstance(ctx.get("per_track_growth", []), list) else ctx.get("per_track_growth", [])),
+        "growth_range_day": ctx.get("growth_range_day"),
+        "growth_range_week": ctx.get("growth_range_week"),
+        "growth_range_month": ctx.get("growth_range_month"),
+        "growth_range_year": ctx.get("growth_range_year"),
+        "growth_from_day_iso": ctx.get("growth_from_day_iso"),
+        "growth_to_day_iso": ctx.get("growth_to_day_iso"),
+        "growth_from_week_iso": ctx.get("growth_from_week_iso"),
+        "growth_to_week_iso": ctx.get("growth_to_week_iso"),
+        "growth_from_month_iso": ctx.get("growth_from_month_iso"),
+        "growth_to_month_iso": ctx.get("growth_to_month_iso"),
+        "growth_from_year_iso": ctx.get("growth_from_year_iso"),
+        "growth_to_year_iso": ctx.get("growth_to_year_iso"),
+    }
+    return jsonify(payload)
 
 
 def build_dashboard_stats(tracks):
@@ -1185,6 +1271,19 @@ def growth_page():
         tracks=tracks,
         aggregate_growth=analytics_context.get("aggregate_growth", {}),
         per_track_growth=analytics_context.get("per_track_growth", []),
+        analytics_platform=analytics_context.get("analytics_platform", ""),
+        growth_range_day=analytics_context.get("growth_range_day", ""),
+        growth_range_week=analytics_context.get("growth_range_week", ""),
+        growth_range_month=analytics_context.get("growth_range_month", ""),
+        growth_range_year=analytics_context.get("growth_range_year", ""),
+        growth_from_day_iso=analytics_context.get("growth_from_day_iso", ""),
+        growth_to_day_iso=analytics_context.get("growth_to_day_iso", ""),
+        growth_from_week_iso=analytics_context.get("growth_from_week_iso", ""),
+        growth_to_week_iso=analytics_context.get("growth_to_week_iso", ""),
+        growth_from_month_iso=analytics_context.get("growth_from_month_iso", ""),
+        growth_to_month_iso=analytics_context.get("growth_to_month_iso", ""),
+        growth_from_year_iso=analytics_context.get("growth_from_year_iso", ""),
+        growth_to_year_iso=analytics_context.get("growth_to_year_iso", ""),
     )
 
 

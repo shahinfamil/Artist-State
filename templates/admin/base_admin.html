@@ -12,15 +12,39 @@
 <body class="admin-body">
 
 {% if session.get('admin_logged_in') %}
+{% set dashboard_notifications = dashboard_stats.milestone_notifications if dashboard_stats is defined and dashboard_stats is not none else [] %}
 <header class="admin-header">
   <div class="admin-header-inner">
     <a href="{{ url_for('admin.dashboard') }}" class="logo">
       <span class="logo-dot"></span> پنل مدیریت
     </a>
-    <nav class="admin-nav">
-      <a href="{{ url_for('home') }}" target="_blank">مشاهده سایت ↗</a>
-      <a href="{{ url_for('admin.logout') }}">خروج</a>
-    </nav>
+
+    <div class="admin-header__actions">
+      {% if dashboard_notifications %}
+      <div class="admin-notification-menu">
+        <button class="admin-notification-toggle" type="button" aria-expanded="false" aria-label="نمایش اعلان‌ها">
+          <i class="ri-notification-3-line" aria-hidden="true"></i>
+          <span class="admin-notification-badge">{{ dashboard_notifications|length }}</span>
+        </button>
+        <div class="admin-notification-panel" role="menu" aria-label="اعلان‌های مهم">
+          {% for item in dashboard_notifications %}
+          <label class="admin-notification-item" data-notification-key="{{ item.track_id }}-{{ item.threshold }}">
+            <input class="admin-notification-check" type="checkbox" data-notification-key="{{ item.track_id }}-{{ item.threshold }}">
+            <span class="admin-notification-copy">
+              <strong>{{ item.title }}</strong>
+              <small>به {{ item.threshold|format_number }} رسیده است</small>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <nav class="admin-nav">
+        <a href="{{ url_for('home') }}" target="_blank">مشاهده سایت ↗</a>
+        <a href="{{ url_for('admin.logout') }}">خروج</a>
+      </nav>
+    </div>
   </div>
 </header>
 {% endif %}

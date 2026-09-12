@@ -1039,6 +1039,17 @@ def combine_youtube_view_counts(counts):
     return total
 
 
+def get_primary_youtube_url(track):
+    """اولین لینک معتبر یوتیوب را برمی‌گرداند و مانع جمع‌شدن دو لینک می‌شود."""
+    if track is None:
+        return None
+    for field in ("youtube_url", "youtube_url_secondary"):
+        value = getattr(track, field, None)
+        if value and str(value).strip():
+            return value.strip()
+    return None
+
+
 def cleanup_old_view_stats(track_id=None):
     """همه رکوردهای قدیمی ViewStat را حذف می‌کند و فقط داده‌های امروز را نگه می‌دارد."""
     today_start = datetime.combine(datetime.now().date(), datetime.min.time())
@@ -1091,15 +1102,10 @@ def update_track_views(track, platform):
     previous_views = get_previous_platform_views(track, platform)
 
     if platform == "youtube":
-        youtube_links = [
-            getattr(track, "youtube_url", None),
-            getattr(track, "youtube_url_secondary", None),
-        ]
-        youtube_links = [link for link in youtube_links if link and str(link).strip()]
-        if not youtube_links:
+        primary_youtube_url = get_primary_youtube_url(track)
+        if not primary_youtube_url:
             return False
-        youtube_views = [get_youtube_views(link) for link in youtube_links]
-        views = combine_youtube_view_counts(youtube_views)
+        views = get_youtube_views(primary_youtube_url)
         if views is None or views <= 0:
             if previous_views is None:
                 return False
@@ -1900,6 +1906,34 @@ def text_matches(query, candidate):
     return search_match_score(query, candidate) >= 25
 
 
+def calculate_daily_growth_stats(track_ids):
+    track_stats = {track_id: {"spotify": None, "youtube": None, "soundcloud": None} for track_id in track_ids}
+    previous_stats = {track_id: {"spotify": 0, "youtube": 0, "soundcloud": 0} for track_id in track_ids}
+
+    for track_id in track_ids:
+        for platform in ("spotify", "youtube", "soundcloud"):
+            latest = (
+                ViewStat.query.filter_by(track_id=track_id, platform=platform)
+                .order_by(ViewStat.fetched_at.desc())
+                .first()
+            )
+            if latest is None:
+                continue
+
+            track_stats[track_id][platform] = int(latest.views or 0)
+
+            previous_day = latest.fetched_at.date() - timedelta(days=1)
+            previous = (
+                ViewStat.query.filter_by(track_id=track_id, platform=platform)
+                .filter(db.func.date(ViewStat.fetched_at) == previous_day.isoformat())
+                .order_by(ViewStat.fetched_at.desc())
+                .first()
+            )
+            previous_stats[track_id][platform] = int(previous.views or 0) if previous else 0
+
+    return track_stats, previous_stats
+
+
 def initialize_database(app, reset=False):
     with app.app_context():
         if reset:
@@ -1961,28 +1995,7 @@ def register_routes(app):
         top_tracks = sorted(all_tracks, key=lambda t: t.total_views(), reverse=True)[:10]
 
         track_ids = [track.id for track in all_tracks]
-        track_stats = {track_id: {"spotify": None, "youtube": None, "soundcloud": None} for track_id in track_ids}
-        previous_stats = {track_id: {"spotify": 0, "youtube": 0, "soundcloud": 0} for track_id in track_ids}
-
-        if track_ids:
-            platform_history = (
-                ViewStat.query
-                .filter(ViewStat.track_id.in_(track_ids))
-                .order_by(ViewStat.track_id.asc(), ViewStat.platform.asc(), ViewStat.fetched_at.desc())
-                .all()
-            )
-
-            for stat in platform_history:
-                track_entry = track_stats.setdefault(stat.track_id, {"spotify": None, "youtube": None, "soundcloud": None})
-                platform_key = stat.platform
-                if platform_key not in track_entry:
-                    continue
-
-                if track_entry[platform_key] is None:
-                    track_entry[platform_key] = stat.views
-                else:
-                    previous_stats.setdefault(stat.track_id, {"spotify": 0, "youtube": 0, "soundcloud": 0})
-                    previous_stats[stat.track_id][platform_key] = stat.views
+        track_stats, previous_stats = calculate_daily_growth_stats(track_ids)
 
         track_totals = {
             track.id: sum(track_stats.get(track.id, {}).get(platform) or 0 for platform in ("spotify", "youtube", "soundcloud"))
@@ -2020,8 +2033,6 @@ def register_routes(app):
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_all_deltas[track.id] = {"delta": delta, "pct": pct}
 
-        top_all = [track for track in top_all if (top_all_deltas.get(track.id, {}).get("delta") or 0) != 0]
-
         top_spotify_deltas = {}
         for track in top_spotify:
             cur = track_stats.get(track.id, {}).get('spotify') or 0
@@ -2029,8 +2040,6 @@ def register_routes(app):
             delta = cur - prev
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_spotify_deltas[track.id] = {"delta": delta, "pct": pct}
-
-        top_spotify = [track for track in top_spotify if (top_spotify_deltas.get(track.id, {}).get("delta") or 0) != 0]
 
         top_youtube_deltas = {}
         for track in top_youtube:
@@ -2040,8 +2049,6 @@ def register_routes(app):
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_youtube_deltas[track.id] = {"delta": delta, "pct": pct}
 
-        top_youtube = [track for track in top_youtube if (top_youtube_deltas.get(track.id, {}).get("delta") or 0) != 0]
-
         top_soundcloud_deltas = {}
         for track in top_soundcloud:
             cur = track_stats.get(track.id, {}).get('soundcloud') or 0
@@ -2049,8 +2056,6 @@ def register_routes(app):
             delta = cur - prev
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_soundcloud_deltas[track.id] = {"delta": delta, "pct": pct}
-
-        top_soundcloud = [track for track in top_soundcloud if (top_soundcloud_deltas.get(track.id, {}).get("delta") or 0) != 0]
 
         # دسته‌بندی ترک‌ها بر اساس ژانر (سبک‌ها)
         genre_map = {}
@@ -2149,29 +2154,7 @@ def register_routes(app):
 
         all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).order_by(Track.release_date.desc()).all()
         track_ids = [track.id for track in all_tracks]
-
-        track_stats = {track_id: {"spotify": None, "youtube": None, "soundcloud": None} for track_id in track_ids}
-        previous_stats = {track_id: {"spotify": 0, "youtube": 0, "soundcloud": 0} for track_id in track_ids}
-
-        if track_ids:
-            platform_history = (
-                ViewStat.query
-                .filter(ViewStat.track_id.in_(track_ids))
-                .order_by(ViewStat.track_id.asc(), ViewStat.platform.asc(), ViewStat.fetched_at.desc())
-                .all()
-            )
-
-            for stat in platform_history:
-                track_entry = track_stats.setdefault(stat.track_id, {"spotify": None, "youtube": None, "soundcloud": None})
-                platform_key = stat.platform
-                if platform_key not in track_entry:
-                    continue
-
-                if track_entry[platform_key] is None:
-                    track_entry[platform_key] = stat.views
-                else:
-                    previous_stats.setdefault(stat.track_id, {"spotify": 0, "youtube": 0, "soundcloud": 0})
-                    previous_stats[stat.track_id][platform_key] = stat.views
+        track_stats, previous_stats = calculate_daily_growth_stats(track_ids)
 
         track_totals = {
             track.id: sum(
@@ -2215,8 +2198,6 @@ def register_routes(app):
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_all_deltas[track.id] = {"delta": delta, "pct": pct}
 
-        top_all = [track for track in top_all if (top_all_deltas.get(track.id, {}).get("delta") or 0) != 0]
-
         top_spotify_deltas = {}
         for track in top_spotify:
             cur = track_stats.get(track.id, {}).get('spotify') or 0
@@ -2224,8 +2205,6 @@ def register_routes(app):
             delta = cur - prev
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_spotify_deltas[track.id] = {"delta": delta, "pct": pct}
-
-        top_spotify = [track for track in top_spotify if (top_spotify_deltas.get(track.id, {}).get("delta") or 0) != 0]
 
         top_youtube_deltas = {}
         for track in top_youtube:
@@ -2235,8 +2214,6 @@ def register_routes(app):
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_youtube_deltas[track.id] = {"delta": delta, "pct": pct}
 
-        top_youtube = [track for track in top_youtube if (top_youtube_deltas.get(track.id, {}).get("delta") or 0) != 0]
-
         top_soundcloud_deltas = {}
         for track in top_soundcloud:
             cur = track_stats.get(track.id, {}).get('soundcloud') or 0
@@ -2244,8 +2221,6 @@ def register_routes(app):
             delta = cur - prev
             pct = (delta / prev * 100.0) if prev > 0 else 0.0
             top_soundcloud_deltas[track.id] = {"delta": delta, "pct": pct}
-
-        top_soundcloud = [track for track in top_soundcloud if (top_soundcloud_deltas.get(track.id, {}).get("delta") or 0) != 0]
 
         return render_template(
             "top_tracks.html",
@@ -2880,6 +2855,19 @@ def register_routes(app):
     @app.template_global()
     def release_label(track):
         return get_release_label(track)
+
+    @app.template_global()
+    def track_youtube_views(track):
+        if track is None:
+            return None
+        primary_url = get_primary_youtube_url(track)
+        if not primary_url:
+            return None
+        try:
+            return get_youtube_views(primary_url)
+        except Exception:
+            stats = track.latest_stats()
+            return stats.get("youtube") if stats else None
 
     @app.template_filter("format_number")
     def format_number(value):

@@ -7270,6 +7270,45 @@ body.player-expanded-open {
   box-shadow: 0 32px 100px rgba(255,85,0,0.18), inset 0 0 0 1px rgba(255,85,0,0.1);
 }
 
+.player-badge-stack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.player-view-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: #f5f5f5;
+}
+
+.player-view-badge--youtube {
+  background: rgba(255,59,48,0.12);
+  border-color: rgba(255,59,48,0.28);
+  color: #ffd7d3;
+}
+
+.player-view-badge--spotify {
+  background: rgba(30,215,96,0.12);
+  border-color: rgba(30,215,96,0.28);
+  color: #d9ffe8;
+}
+
+.player-view-badge--soundcloud {
+  background: rgba(255,85,0,0.12);
+  border-color: rgba(255,85,0,0.28);
+  color: #ffe0cc;
+}
+
 .player-brand-badge {
   display: inline-flex;
   align-items: center;
@@ -7278,7 +7317,7 @@ body.player-expanded-open {
   border-radius: 999px;
   font-size: 0.88rem;
   color: #fff;
-  margin: 8px 0 14px;
+  margin: 0;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.05);
 }

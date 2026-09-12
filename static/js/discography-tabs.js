@@ -243,10 +243,7 @@
   });
 
   function sortTrackRows(list, mode = (list.dataset.sortMode || "views")) {
-    const rows = Array.from(list.querySelectorAll(".track-row")).filter((row) => {
-      if (mode !== "growth") return true;
-      return Number(row.dataset.growth || 0) !== 0;
-    });
+    const rows = Array.from(list.querySelectorAll(".track-row"));
 
     rows.sort((a, b) => {
       const left = mode === "growth" ? Number(b.dataset.growth || 0) : Number(b.dataset.total || 0);
@@ -285,10 +282,7 @@
         const expanded = list.dataset.expanded === "true";
         sortTrackRows(list, list.dataset.sortMode || "views");
 
-        const visibleRows = Array.from(list.querySelectorAll(".track-row")).filter((row) => {
-          if ((list.dataset.sortMode || "views") !== "growth") return true;
-          return Number(row.dataset.growth || 0) !== 0;
-        });
+        const visibleRows = Array.from(list.querySelectorAll(".track-row"));
 
         visibleRows.forEach((row, index) => {
           const shouldShow = expanded || index < showCount;
