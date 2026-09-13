@@ -13,18 +13,35 @@
     {% if tracks %}
     <div class="track-list track-list--two-up">
       {% for track in tracks %}
-      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row track-row--compact">
+      <div class="track-row" data-total="0" data-growth="0">
+        <span class="track-rank">{{ "%02d"|format(tracks|length - loop.index + 1) }}</span>
         <div class="track-cover-wrap">
-          <img class="track-cover" src="{{ track.cover_url }}" alt="">
-        </div>
-        <span class="track-info">
-          <span class="track-title-row">
-            <span class="track-title left">{{ track.title }}</span>
+          <img class="track-cover" src="{{ track.cover_url }}" alt="{{ track.title }}">
+          {% if track.is_the_shah %}
+          <span class="cover-badge" aria-label="The Shah">
+            <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
           </span>
-          <span class="track-album">{% if track.album.release_type == 'single' %}Single{% else %}{{ track.album.title }}{% endif %} | Lyric : {{ track.lyricist }}{% if track.release_date %} | {{ track.release_date|format_date_short }}{% endif %}</span>
-        </span>
-        <span class="track-rank">{{ tracks|length - loop.index + 1 }}</span>
-      </a>
+          {% endif %}
+        </div>
+        <div class="track-info">
+          <div class="track-title-row left">
+            <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+          </div>
+          <span class="track-album album-page__track-subtitle">
+            {% if track.album and track.album.release_type == 'single' %}
+              <span class="album-page__tag">Album</span>
+              <span>Single</span>
+            {% elif track.album %}
+              <span class="album-page__tag">Album</span>
+              <span>{{ track.album.title }}</span>
+            {% endif %}
+            {% if track.lyricist_display %}
+              <span class="album-page__tag">Lyric</span>
+              <span>{{ track.lyricist_display }}</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
       {% endfor %}
     </div>
     {% else %}

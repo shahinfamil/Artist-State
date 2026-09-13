@@ -89,16 +89,22 @@ def extract_youtube_view_count(html: str) -> int | None:
         r'"viewCount":(\d+)',
         r'"estimatedViewCount":"([\d,]+)"',
         r'"approxViewCount":"([\d,]+)"',
-        r'"viewCountText":\{"simpleText":"([\d,]+)\\s+views"',
-        r'"shortViewCountText":\{"simpleText":"([\d,]+)\\s+views"',
-        r'([\d,]+)\s+views',
-        r'([\d,]+)\s+watching',
+        r'"viewCountText"\s*:\s*\{"simpleText"\s*:\s*"([^"]+)"\}',
+        r'"viewCountText"\s*:\s*\{"accessibility"\s*:\s*\{"accessibilityData"\s*:\s*\{"label"\s*:\s*"([^"]+)"\}\}\}',
+        r'"shortViewCountText"\s*:\s*\{"simpleText"\s*:\s*"([^"]+)"\}',
+        r'"shortViewCountText"\s*:\s*\{"accessibility"\s*:\s*\{"accessibilityData"\s*:\s*\{"label"\s*:\s*"([^"]+)"\}\}\}',
+        r'([\d,]+)\s+(?:views|watching)',
+        r'"label"\s*:\s*"([^"\n]*?[\d,]+[^"\n]*?(?:views|watching))"',
     ]
 
     for pattern in patterns:
         match = re.search(pattern, html, re.IGNORECASE)
         if match:
-            value = match.group(1).replace(",", "")
+            value = match.group(1)
+            digits = re.search(r"[\d][\d,\.]*", value)
+            if not digits:
+                continue
+            value = digits.group(0).replace(",", "")
             try:
                 return int(value)
             except ValueError:

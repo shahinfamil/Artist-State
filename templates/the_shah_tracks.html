@@ -13,32 +13,36 @@
     {% if tracks %}
     <div class="track-list track-list--two-up">
       {% for track in tracks %}
-      <a href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}" class="track-row track-row--compact">
+      <div class="track-row" data-total="0" data-growth="0">
+        <span class="track-rank">{{ "%02d"|format(tracks|length - loop.index + 1) }}</span>
         <div class="track-cover-wrap">
-          <img class="track-cover" src="{{ track.cover_url }}" alt="">
-        </div>
-        <span class="track-info">
-          <span class="track-title-row">
-            <span class="track-title left">{{ track.title }}</span>
+          <img class="track-cover" src="{{ track.cover_url }}" alt="{{ track.title }}">
+          {% if track.is_the_shah %}
+          <span class="cover-badge" aria-label="The Shah">
+            <i class="icon ri-vip-crown-fill" aria-hidden="true"></i>
           </span>
-          {% if track.album and track.album.release_type == 'album' %}
-            {% set feature_names = track.collaborator_names %}
-            {% if feature_names %}
-              <span class="track-album">{{ track.album.title }} | Feat: {{ feature_names|join(', ') }} | {{ track.release_date|format_date_short }}</span>
-            {% else %}
-              <span class="track-album">{{ track.album.title }} | {{ track.release_date|format_date_short }}</span>
-            {% endif %}
-          {% else %}
-            {% set feature_names = track.collaborator_names %}
-            {% if feature_names %}
-              <span class="track-album">Single | Feat: {{ feature_names|join(', ') }} | {{ track.release_date|format_date_short }}</span>
-            {% else %}
-              <span class="track-album">Single | {{ track.display_artist_name }} | {{ track.release_date|format_date_short }}</span>
-            {% endif %}
           {% endif %}
-        </span>
-        <span class="track-rank">{{ tracks|length - loop.index + 1 }}</span>
-      </a>
+        </div>
+        <div class="track-info">
+          <div class="track-title-row left">
+            <a class="track-title-link" href="{{ url_for('track_detail', track_id=track.id, slug=slugify_text(track.title)) }}">{{ track.title }}</a>
+          </div>
+          <span class="track-album album-page__track-subtitle">
+            {% if track.album and track.album.release_type == 'album' %}
+              <span class="album-page__tag">Album</span>
+              <span>{{ track.album.title }}</span>
+            {% else %}
+              <span class="album-page__tag">Album</span>
+              <span>Single</span>
+            {% endif %}
+            {% set feature_names = track.collaborator_names %}
+            {% if feature_names %}
+              <span class="album-page__tag">Feat</span>
+              <span>{{ feature_names|join(', ') }}</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
       {% endfor %}
     </div>
     {% else %}

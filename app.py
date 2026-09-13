@@ -1050,6 +1050,32 @@ def get_primary_youtube_url(track):
     return None
 
 
+def track_youtube_views(track):
+    """ویو لینک اصلی یوتیوب را برای نمایش در فرم‌ها و تمپلیت‌ها برمی‌گرداند."""
+    if track is None:
+        return None
+    primary_url = get_primary_youtube_url(track)
+    if not primary_url:
+        return None
+
+    try:
+        live_views = get_youtube_views(primary_url)
+    except Exception:
+        live_views = None
+
+    if live_views is not None and live_views > 0:
+        return live_views
+
+    stats = track.latest_stats() or {}
+    cached_views = stats.get("youtube")
+    if cached_views is not None:
+        try:
+            return int(cached_views)
+        except (TypeError, ValueError):
+            return cached_views
+    return None
+
+
 def cleanup_old_view_stats(track_id=None):
     """همه رکوردهای قدیمی ViewStat را حذف می‌کند و فقط داده‌های امروز را نگه می‌دارد."""
     today_start = datetime.combine(datetime.now().date(), datetime.min.time())
@@ -1102,10 +1128,16 @@ def update_track_views(track, platform):
     previous_views = get_previous_platform_views(track, platform)
 
     if platform == "youtube":
-        primary_youtube_url = get_primary_youtube_url(track)
-        if not primary_youtube_url:
+        youtube_links = [
+            getattr(track, "youtube_url", None),
+            getattr(track, "youtube_url_secondary", None),
+        ]
+        youtube_links = [link for link in youtube_links if link and str(link).strip()]
+        if not youtube_links:
             return False
-        views = get_youtube_views(primary_youtube_url)
+
+        youtube_views = [get_youtube_views(link) for link in youtube_links]
+        views = combine_youtube_view_counts(youtube_views)
         if views is None or views <= 0:
             if previous_views is None:
                 return False
@@ -1983,15 +2015,15 @@ def register_routes(app):
         artist = Artist.query.first()
         if not artist:
             return render_template("setup_needed.html")
-        albums = Album.query.filter_by(artist_id=artist.id).order_by(Album.release_date.desc()).all()
+        albums = Album.query.order_by(Album.release_date.desc().nulls_last()).all()
 
         grouped_albums = group_albums_for_display(albums)
         singles = grouped_albums["singles"]
         eps = grouped_albums["eps"]
         full_albums = grouped_albums["full_albums"]
 
-        # پرطرفدارترین ترک‌ها برای نمایش در صفحه اصلی
-        all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).all()
+        # همه‌ی ترک‌های فعال از همه‌ی آلبوم‌های اضافه‌شده به سایت
+        all_tracks = Track.query.join(Album).filter(Track.is_active == True).all()
         top_tracks = sorted(all_tracks, key=lambda t: t.total_views(), reverse=True)[:10]
 
         track_ids = [track.id for track in all_tracks]
@@ -2104,7 +2136,7 @@ def register_routes(app):
         if not artist:
             return render_template("setup_needed.html")
 
-        all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).all()
+        all_tracks = Track.query.join(Album).filter(Track.is_active == True).all()
         release_calendar = build_release_calendar_data(all_tracks)
         next_release = get_next_release_info(all_tracks)
         today = datetime.now().date()
@@ -2134,8 +2166,8 @@ def register_routes(app):
         wiki_data = get_artist_wikipedia_data(artist)
         social_stats = get_stored_social_stats(artist)
 
-        albums = Album.query.filter_by(artist_id=artist.id).order_by(Album.release_date.asc().nulls_last()).all()
-        tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).order_by(Track.release_date.asc().nulls_last()).all()
+        albums = Album.query.order_by(Album.release_date.asc().nulls_last()).all()
+        tracks = Track.query.join(Album).filter(Track.is_active == True).order_by(Track.release_date.asc().nulls_last()).all()
 
         return render_template(
             "wikipedia_artist.html",
@@ -2152,7 +2184,7 @@ def register_routes(app):
         if not artist:
             return render_template("setup_needed.html")
 
-        all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id, Track.is_active == True).order_by(Track.release_date.desc()).all()
+        all_tracks = Track.query.join(Album).filter(Track.is_active == True).order_by(Track.release_date.desc()).all()
         track_ids = [track.id for track in all_tracks]
         track_stats, previous_stats = calculate_daily_growth_stats(track_ids)
 
@@ -2245,7 +2277,7 @@ def register_routes(app):
 
         tracks = (
             Track.query.join(Album)
-            .filter(Album.artist_id == artist.id, Track.is_active == True, Track.is_the_shah == True)
+            .filter(Track.is_active == True, Track.is_the_shah == True)
             .order_by(Track.release_date.desc().nulls_last(), Track.sort_order.asc(), Track.title.asc())
             .all()
         )
@@ -2260,7 +2292,7 @@ def register_routes(app):
 
         tracks = (
             Track.query.join(Album)
-            .filter(Album.artist_id == artist.id, Track.is_active == True, Track.is_the_shah == False)
+            .filter(Track.is_active == True, Track.is_the_shah == False)
             .order_by(Track.release_date.desc().nulls_last(), Track.sort_order.asc(), Track.title.asc())
             .all()
         )
@@ -2272,7 +2304,7 @@ def register_routes(app):
         artist = Artist.query.first()
         if not artist:
             return render_template("setup_needed.html")
-        albums = Album.query.filter_by(artist_id=artist.id).order_by(Album.release_date.desc()).all()
+        albums = Album.query.order_by(Album.release_date.desc().nulls_last()).all()
 
         grouped_albums = group_albums_for_display(albums)
         singles = grouped_albums["singles"]
@@ -2757,9 +2789,7 @@ def register_routes(app):
         
         results = []
         if query:
-            tracks = Track.query.join(Album).filter(
-                Album.artist_id == artist.id
-            ).all()
+            tracks = Track.query.join(Album).all()
 
             query_normalized = normalize_text(query)
             results = []
@@ -2788,9 +2818,7 @@ def register_routes(app):
         if not artist or not query or len(query) < 2:
             return jsonify([])
         
-        tracks = Track.query.join(Album).filter(
-            Album.artist_id == artist.id
-        ).all()
+        tracks = Track.query.join(Album).all()
 
         query_normalized = normalize_text(query)
         results = []
@@ -2824,7 +2852,7 @@ def register_routes(app):
             genres = [g.strip() for g in str(genre_value).split(",") if g.strip()]
             return genres or ["بدون سبک"]
 
-        all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id).all()
+        all_tracks = Track.query.join(Album).all()
         genre_map = {}
         for t in all_tracks:
             for g in normalize_genres(t.genre):
@@ -2847,7 +2875,7 @@ def register_routes(app):
             genres = [g.strip() for g in str(genre_value).split(",") if g.strip()]
             return genres or ["بدون سبک"]
 
-        all_tracks = Track.query.join(Album).filter(Album.artist_id == artist.id).all()
+        all_tracks = Track.query.join(Album).all()
         tracks = [t for t in all_tracks if genre_name in normalize_genres(t.genre)]
         tracks = sorted(tracks, key=lambda t: t.total_views(), reverse=True)
         return render_template("genre_detail.html", artist=artist, genre_name=genre_name, tracks=tracks)
@@ -2857,17 +2885,8 @@ def register_routes(app):
         return get_release_label(track)
 
     @app.template_global()
-    def track_youtube_views(track):
-        if track is None:
-            return None
-        primary_url = get_primary_youtube_url(track)
-        if not primary_url:
-            return None
-        try:
-            return get_youtube_views(primary_url)
-        except Exception:
-            stats = track.latest_stats()
-            return stats.get("youtube") if stats else None
+    def track_youtube_views_template(track):
+        return track_youtube_views(track)
 
     @app.template_filter("format_number")
     def format_number(value):
