@@ -2060,6 +2060,50 @@ def trigger_update():
     flash("آپدیت آمار در پس‌زمینه شروع شد. چند دقیقه بعد نتیجه در لاگ‌ها دیده می‌شود.", "success")
     return redirect(url_for("admin.dashboard", _anchor="content"))
 
+
+@admin_bp.route("/update-views/<platform>", methods=["POST"])
+@login_required
+def trigger_update_platform(platform):
+    global _update_running
+
+    platform = (platform or "").strip().lower()
+    if platform not in {"spotify", "youtube", "soundcloud"}:
+        flash("پلتفرم نامعتبر است.", "error")
+        return redirect(url_for("admin.dashboard", _anchor="content"))
+
+    if _update_running:
+        flash("یک آپدیت آمار در حال اجراست. لطفاً صبر کنید.", "warning")
+        return redirect(url_for("admin.dashboard", _anchor="content"))
+
+    from flask import current_app
+    from app import update_all_tracks_for_platform
+
+    app_obj = current_app._get_current_object()
+
+    def run_update():
+        global _update_running
+        _update_running = True
+        try:
+            update_all_tracks_for_platform(app_obj, platform)
+        except Exception as e:
+            print(f"[updater] FATAL [{platform}]: {e}")
+        finally:
+            _update_running = False
+
+    if not _update_lock.acquire(blocking=False):
+        flash("یک آپدیت آمار در حال اجراست. لطفاً صبر کنید.", "warning")
+        return redirect(url_for("admin.dashboard", _anchor="content"))
+
+    try:
+        t = threading.Thread(target=run_update, daemon=True)
+        t.start()
+    finally:
+        _update_lock.release()
+
+    label_map = {"spotify": "اسپاتیفای", "youtube": "یوتیوب", "soundcloud": "ساندکلود"}
+    flash(f"آپدیت آمار {label_map.get(platform, platform)} در پس‌زمینه شروع شد. چند دقیقه بعد نتیجه در لاگ‌ها دیده می‌شود.", "success")
+    return redirect(url_for("admin.dashboard", _anchor="content"))
+
 # ---------------------------------------------------------------- وارد کردن خودکار از اسپاتیفای
 def _get_or_create_artist(spotify_url, name="", avatar_url=""):
     artist = None

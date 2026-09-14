@@ -1230,6 +1230,31 @@ def update_all_tracks(app):
         print("[updater] آپدیت تمام شد.")
 
 
+def update_all_tracks_for_platform(app, platform):
+    """تمام ترک‌های فعال را فقط برای یک پلتفرم مشخص به‌روزرسانی می‌کند."""
+    valid_platforms = {"spotify", "youtube", "soundcloud"}
+    if platform not in valid_platforms:
+        raise ValueError(f"Unsupported platform: {platform}")
+
+    with app.app_context():
+        tracks = Track.query.filter_by(is_active=True).all()
+        total = len(tracks)
+        print(f"[updater] شروع آپدیت {total} ترک برای پلتفرم {platform} در {datetime.now()}")
+
+        for i, track in enumerate(tracks, 1):
+            try:
+                updated = update_track_stats(track, platform=platform)
+                status = "✓" if updated else "•"
+                print(f"  {status} [{i}/{total}] {track.title} [{platform}]")
+            except Exception as e:
+                db.session.rollback()
+                print(f"  ✗ [{i}/{total}] {track.title} [{platform}]: {e}")
+
+            time.sleep(1.2)
+
+        print(f"[updater] آپدیت {platform} تمام شد.")
+
+
 def update_artist_social_counts(app):
     """برای آرتیست، تعداد فالورها/سابسکرایب‌ها را استخراج و ذخیره می‌کند."""
     with app.app_context():
@@ -2039,20 +2064,39 @@ def register_routes(app):
         }
 
         tracks_with_any_views = [track for track in all_tracks if (track_totals.get(track.id) or 0) > 0]
-        top_all = sorted(tracks_with_any_views, key=lambda track: track_totals.get(track.id, 0), reverse=True)
+        top_all = sorted(
+            [
+                track for track in tracks_with_any_views
+                if (track_totals.get(track.id, 0) or 0) != (track_previous_totals.get(track.id, 0) or 0)
+            ],
+            key=lambda track: track_totals.get(track.id, 0),
+            reverse=True,
+        )
 
         top_spotify = sorted(
-            [track for track in all_tracks if (track_stats.get(track.id, {}).get('spotify') or 0) > 0],
+            [
+                track for track in all_tracks
+                if (track_stats.get(track.id, {}).get('spotify') or 0) > 0
+                and (track_stats.get(track.id, {}).get('spotify') or 0) != (previous_stats.get(track.id, {}).get('spotify', 0) or 0)
+            ],
             key=lambda track: track_stats.get(track.id, {}).get('spotify') or 0,
             reverse=True,
         )
         top_youtube = sorted(
-            [track for track in all_tracks if (track_stats.get(track.id, {}).get('youtube') or 0) > 0],
+            [
+                track for track in all_tracks
+                if (track_stats.get(track.id, {}).get('youtube') or 0) > 0
+                and (track_stats.get(track.id, {}).get('youtube') or 0) != (previous_stats.get(track.id, {}).get('youtube', 0) or 0)
+            ],
             key=lambda track: track_stats.get(track.id, {}).get('youtube') or 0,
             reverse=True,
         )
         top_soundcloud = sorted(
-            [track for track in all_tracks if (track_stats.get(track.id, {}).get('soundcloud') or 0) > 0],
+            [
+                track for track in all_tracks
+                if (track_stats.get(track.id, {}).get('soundcloud') or 0) > 0
+                and (track_stats.get(track.id, {}).get('soundcloud') or 0) != (previous_stats.get(track.id, {}).get('soundcloud', 0) or 0)
+            ],
             key=lambda track: track_stats.get(track.id, {}).get('soundcloud') or 0,
             reverse=True,
         )
@@ -2204,20 +2248,39 @@ def register_routes(app):
         }
 
         tracks_with_any_views = [track for track in all_tracks if (track_totals.get(track.id) or 0) > 0]
-        top_all = sorted(tracks_with_any_views, key=lambda track: track_totals.get(track.id, 0), reverse=True)
+        top_all = sorted(
+            [
+                track for track in tracks_with_any_views
+                if (track_totals.get(track.id, 0) or 0) != (track_previous_totals.get(track.id, 0) or 0)
+            ],
+            key=lambda track: track_totals.get(track.id, 0),
+            reverse=True,
+        )
 
         top_spotify = sorted(
-            [track for track in all_tracks if (track_stats.get(track.id, {}).get('spotify') or 0) > 0],
+            [
+                track for track in all_tracks
+                if (track_stats.get(track.id, {}).get('spotify') or 0) > 0
+                and (track_stats.get(track.id, {}).get('spotify') or 0) != (previous_stats.get(track.id, {}).get('spotify', 0) or 0)
+            ],
             key=lambda track: track_stats.get(track.id, {}).get('spotify') or 0,
             reverse=True,
         )
         top_youtube = sorted(
-            [track for track in all_tracks if (track_stats.get(track.id, {}).get('youtube') or 0) > 0],
+            [
+                track for track in all_tracks
+                if (track_stats.get(track.id, {}).get('youtube') or 0) > 0
+                and (track_stats.get(track.id, {}).get('youtube') or 0) != (previous_stats.get(track.id, {}).get('youtube', 0) or 0)
+            ],
             key=lambda track: track_stats.get(track.id, {}).get('youtube') or 0,
             reverse=True,
         )
         top_soundcloud = sorted(
-            [track for track in all_tracks if (track_stats.get(track.id, {}).get('soundcloud') or 0) > 0],
+            [
+                track for track in all_tracks
+                if (track_stats.get(track.id, {}).get('soundcloud') or 0) > 0
+                and (track_stats.get(track.id, {}).get('soundcloud') or 0) != (previous_stats.get(track.id, {}).get('soundcloud', 0) or 0)
+            ],
             key=lambda track: track_stats.get(track.id, {}).get('soundcloud') or 0,
             reverse=True,
         )

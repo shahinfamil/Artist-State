@@ -13,29 +13,52 @@
       <section class="admin-card admin-tab-panel is-active" data-tab-panel="content">
         <div class="admin-section-head">
           <div>
-            <p class="eyebrow">محتوای موسیقی</p>
-            <h2>آلبوم‌ها و آهنگ‌ها</h2>
+            <h2 class="eyebrow">آلبوم‌ها و آهنگ‌ها</h2>
           </div>
           <div class="admin-section-head__actions">
             <a href="{{ url_for('admin.album_new', next_tab='content') }}" class="btn btn-primary btn-sm">افزودن دستی آلبوم</a>
             <a href="{{ url_for('admin.spotify_import', next_tab='content') }}" class="btn btn-sm admin-spotify-import-btn">وارد کردن خودکار از اسپاتیفای</a>
             <form method="POST" action="{{ url_for('admin.cleanup_all_view_history') }}" onsubmit="return confirm('تمام تاریخچهٔ قدیمی ویوها حذف شود و فقط داده‌های امروز باقی بمانند؟');" class="admin-inline-form">
-              <button type="submit" class="btn btn-danger btn-sm admin-cleanup-history-btn">
-                پاک‌سازی تاریخچه بازدیدها
+              <button type="submit" class="btn btn-danger btn-sm admin-cleanup-history-btn" aria-label="پاک‌سازی تاریخچه بازدیدها" title="ز">
+                پاکسازی تاریچه بازدیدها
               </button>
             </form>
-            <form method="POST" action="{{ url_for('admin.trigger_update') }}" onsubmit="return confirm('آپدیت اتوماتیک آمار شروع شود؟ ممکن است چند دقیقه طول بکشد.');" class="admin-inline-form">
-              <button type="submit" class="btn btn-outline btn-sm">آپدیت اتوماتیک آمار بازدیدها</button>
-            </form>
+
+            <div class="admin-update-box" aria-label="بخش آپدیت آمار">
+              <div class="admin-update-box__header">
+                <span class="admin-update-box__title">آپدیت آمار</span>
+              </div>
+              <div class="admin-update-box__actions">
+                <form method="POST" action="{{ url_for('admin.trigger_update') }}" onsubmit="return confirm('آپدیت اتوماتیک آمار شروع شود؟ ممکن است چند دقیقه طول بکشد.');" class="admin-inline-form">
+                  <button type="submit" class="btn btn-outline admin-update-action admin-update-action--all" aria-label="آپدیت کلی همه پلتفرم‌ها" title="آپدیت کلی همه پلتفرم‌ها">
+                    <i class="ri-refresh-line" aria-hidden="true"></i>
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.trigger_update_platform', platform='spotify') }}" onsubmit="return confirm('آمار تمام ترک‌ها در اسپاتیفای به‌صورت جداگانه به‌روزرسانی شود؟');" class="admin-inline-form">
+                  <button type="submit" class="btn btn-outline admin-update-action admin-update-action--spotify" aria-label="آپدیت اسپاتیفای" title="آپدیت اسپاتیفای">
+                    <i class="ri-spotify-fill" aria-hidden="true"></i>
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.trigger_update_platform', platform='youtube') }}" onsubmit="return confirm('آمار تمام ترک‌ها در یوتیوب به‌صورت جداگانه به‌روزرسانی شود؟');" class="admin-inline-form">
+                  <button type="submit" class="btn btn-outline admin-update-action admin-update-action--youtube" aria-label="آپدیت یوتیوب" title="آپدیت یوتیوب">
+                    <i class="ri-youtube-fill" aria-hidden="true"></i>
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.trigger_update_platform', platform='soundcloud') }}" onsubmit="return confirm('آمار تمام ترک‌ها در ساندکلود به‌صورت جداگانه به‌روزرسانی شود؟');" class="admin-inline-form">
+                  <button type="submit" class="btn btn-outline admin-update-action admin-update-action--soundcloud" aria-label="آپدیت ساندکلود" title="آپدیت ساندکلود">
+                    <i class="ri-soundcloud-fill" aria-hidden="true"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+
             <p class="muted">{{ albums|length }} آلبوم در دسترس</p>
           </div>
         </div>
 
         <div class="admin-content-search">
           <input type="search" id="contentLiveSearch" placeholder="جست‌وجوی آلبوم یا آهنگ..." autocomplete="off">
-          <span class="muted">تایپ کنید تا فیلتر شود</span>
         </div>
-
         {% for album in albums %}
         <div class="album-block" data-album-title="{{ album.title }}">
           <div class="album-block-head">

@@ -1869,6 +1869,87 @@ hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0; 
   flex-wrap: wrap;
 }
 
+.admin-update-box {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.admin-update-box__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+}
+
+.admin-update-box__title {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.admin-update-box__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-update-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-update-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.18);
+}
+
+.admin-update-action i {
+  font-size: 1.1rem;
+  line-height: 1;
+  display: block;
+}
+
+.admin-update-action--all {
+  color: #f4d48c;
+  border-color: rgba(244, 212, 140, 0.4);
+  background: rgba(244, 212, 140, 0.08);
+}
+
+.admin-update-action--spotify {
+  color: #44d88a;
+  border-color: rgba(68, 216, 138, 0.4);
+  background: rgba(68, 216, 138, 0.08);
+}
+
+.admin-update-action--youtube {
+  color: #ff6d6d;
+  border-color: rgba(255, 109, 109, 0.4);
+  background: rgba(255, 109, 109, 0.08);
+}
+
+.admin-update-action--soundcloud {
+  color: #f9d660;
+  border-color: rgba(249, 214, 96, 0.4);
+  background: rgba(249, 214, 96, 0.08);
+}
+
 .album-block {
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 16px;
