@@ -1,12 +1,12 @@
 {% extends "admin/base_admin.html" %}
-{% block title %}داشبورد مدیریت{% endblock %}
+{% block title %}پنل ادمین{% endblock %}
 
 {% block content %}
 <div class="admin-container">
   {% if not artist %}
     <div class="admin-card">
-      <h2>برای شروع، اطلاعات آرتیست را وارد کنید</h2>
-      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-primary">افزودن اطلاعات آرتیست</a>
+      <h2>To get started, add artist information</h2>
+      <a href="{{ url_for('admin.artist_form') }}" class="btn btn-primary">Add Artist</a>
     </div>
   {% else %}
     <div class="admin-dashboard" id="admin-dashboard">
@@ -18,6 +18,9 @@
             <p class="muted">{% set bio_text = artist.bio or '' %}{{ bio_text[:120] }}{% if bio_text|length > 120 %}…{% endif %}</p>
           </div>
         </section>
+
+        <!-- Platform aggregate view cards -->
+
 
         <section class="admin-summary-grid-4 admin-summary-grid--wide" aria-label="آمار سریع">
           <div class="admin-card admin-stat-card admin-stat-card--muted">
@@ -55,11 +58,59 @@
           <div class="admin-section-head">
             <div>
               <h2>آمار</h2>
-              <p class="muted">پراکندگی ژانر، همکاری، ترانه‌سراها و موزیک ویدیوها</p>
+              <p class="muted">بازدیدها، پراکندگی ژانر، همکاری، ترانه‌سراها و موزیک ویدیوها</p>
             </div>
             <span class="analytics-panel__chip">پیشخوان آماری</span>
           </div>
+        <section class="admin-summary-grid-3 platform-cards" aria-label="مجموع پخش‌ها">
+          <div class="admin-card platform-card platform-card--youtube" role="button" tabindex="0" aria-label="YouTube total views">
+            <i class="platform-card__bg icon ri-youtube-fill" aria-hidden="true"></i>
+            <div class="platform-card__body">
+              {% if dashboard_stats.get('platform_views') and dashboard_stats.get('platform_views').get('youtube') is not none %}
+                <div class="platform-card__value platform-card__value--fancy">{{ "{:,}".format(dashboard_stats.get('platform_views').get('youtube')) }}</div>
+              {% else %}
+                {% set ns = namespace(total=0) %}
+                {% for t in tracks %}
+                  {% set ls = t.latest_stats() %}
+                  {% if ls.get('youtube') %}{% set ns.total = ns.total + ls.get('youtube') %}{% endif %}
+                {% endfor %}
+                <div class="platform-card__value platform-card__value--fancy">{{ "{:,}".format(ns.total) }}</div>
+              {% endif %}
+            </div>
+          </div>
 
+          <div class="admin-card platform-card platform-card--spotify" role="button" tabindex="0" aria-label="Spotify total streams">
+            <i class="platform-card__bg icon ri-spotify-fill" aria-hidden="true"></i>
+            <div class="platform-card__body">
+              {% if dashboard_stats.get('platform_views') and dashboard_stats.get('platform_views').get('spotify') is not none %}
+                <div class="platform-card__value platform-card__value--fancy">{{ "{:,}".format(dashboard_stats.get('platform_views').get('spotify')) }}</div>
+              {% else %}
+                {% set ns2 = namespace(total=0) %}
+                {% for t in tracks %}
+                  {% set ls = t.latest_stats() %}
+                  {% if ls.get('spotify') %}{% set ns2.total = ns2.total + ls.get('spotify') %}{% endif %}
+                {% endfor %}
+                <div class="platform-card__value platform-card__value--fancy">{{ "{:,}".format(ns2.total) }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="admin-card platform-card platform-card--soundcloud" role="button" tabindex="0" aria-label="SoundCloud total plays">
+            <i class="platform-card__bg icon ri-soundcloud-fill" aria-hidden="true"></i>
+            <div class="platform-card__body">
+              {% if dashboard_stats.get('platform_views') and dashboard_stats.get('platform_views').get('soundcloud') is not none %}
+                <div class="platform-card__value platform-card__value--fancy">{{ "{:,}".format(dashboard_stats.get('platform_views').get('soundcloud')) }}</div>
+              {% else %}
+                {% set ns3 = namespace(total=0) %}
+                {% for t in tracks %}
+                  {% set ls = t.latest_stats() %}
+                  {% if ls.get('soundcloud') %}{% set ns3.total = ns3.total + ls.get('soundcloud') %}{% endif %}
+                {% endfor %}
+                <div class="platform-card__value platform-card__value--fancy">{{ "{:,}".format(ns3.total) }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
           <section class="admin-summary-grid-4 admin-summary-grid--wide">
             <a href="#collaboration-chart" class="admin-card admin-stat-card admin-stat-card--highlight admin-stat-card--link" aria-label="رفتن به نمودار همکاری">
               <div class="admin-stat-card__top">

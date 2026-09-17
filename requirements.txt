@@ -10,3 +10,5 @@ apify-client
 spotifyscraper
 gunicorn
 psycopg2-binary
+redis
+prometheus-client

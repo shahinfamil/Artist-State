@@ -108,13 +108,13 @@
           const payload = await res.json();
           if (payload && payload.success) {
             row.classList.toggle('is-inactive', !payload.is_active);
-          } else {
+            } else {
             cb.checked = !newState;
-            alert('خطا در تغییر وضعیت');
+            alert('Error changing status');
           }
         } catch (err) {
           cb.checked = !newState;
-          alert('خطا در ارتباط با سرور');
+          alert('Server communication error');
         } finally {
           cb.disabled = false;
         }
@@ -224,7 +224,7 @@
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.success) {
-          throw new Error(data.message || 'به‌روزرسانی انجام نشد.');
+          throw new Error(data.message || 'Update failed.');
         }
 
         const formattedValue = data.latest_stats && data.latest_stats[platform] !== null && data.latest_stats[platform] !== undefined
@@ -237,9 +237,9 @@
 
         button.classList.remove('is-error');
         button.innerHTML = `<span class="btn-label">${originalLabel}</span>`;
-      } catch (error) {
+        } catch (error) {
         button.classList.add('is-error');
-        button.innerHTML = '<span class="btn-label">خطا</span>';
+        button.innerHTML = '<span class="btn-label">Error</span>';
         setTimeout(() => {
           button.classList.remove('is-error');
           button.innerHTML = `<span class="btn-label">${originalLabel}</span>`;

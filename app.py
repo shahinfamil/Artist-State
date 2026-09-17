@@ -1,6 +1,8 @@
 import os
 import random
 import re
+import logging
+from logging.handlers import RotatingFileHandler
 import secrets
 import sys
 import threading
@@ -34,7 +36,30 @@ SOCIAL_HEADERS = {
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY", "")
 APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
-YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "").strip()
+# If env var is not set, allow a local fallback file at instance/youtube_api_key.txt
+if not YOUTUBE_API_KEY:
+    try:
+        fallback_key_file = os.path.join(BASE_DIR, "instance", "youtube_api_key.txt")
+        if os.path.exists(fallback_key_file):
+            with open(fallback_key_file, "r", encoding="utf-8") as fh:
+                key = fh.read().strip()
+                if key:
+                    YOUTUBE_API_KEY = key
+                    os.environ["YOUTUBE_API_KEY"] = key
+    except Exception:
+        pass
+
+# --- updater logger setup -------------------------------------------------
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+_updater_logger = logging.getLogger("artist_state.updater")
+if not _updater_logger.handlers:
+    handler = RotatingFileHandler(os.path.join(LOG_DIR, "updater.log"), maxBytes=2_000_000, backupCount=5, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    _updater_logger.setLevel(logging.INFO)
+    _updater_logger.addHandler(handler)
+
 
 INSTAGRAM_RATE_LIMIT_UNTIL = None
 INSTAGRAM_REQUEST_LOCK = threading.Lock()
@@ -1126,7 +1151,6 @@ def get_track_platforms_with_links(track):
 def update_track_views(track, platform):
     """آمار یک پلتفرم را برای یک ترک خاص به‌روزرسانی می‌کند."""
     previous_views = get_previous_platform_views(track, platform)
-
     if platform == "youtube":
         youtube_links = [
             getattr(track, "youtube_url", None),
@@ -1137,11 +1161,23 @@ def update_track_views(track, platform):
             return False
 
         youtube_views = [get_youtube_views(link) for link in youtube_links]
-        views = combine_youtube_view_counts(youtube_views)
-        if views is None or views <= 0:
-            if previous_views is None:
-                return False
-            views = previous_views
+
+        # Only persist if ALL requested links returned a valid positive count.
+        def to_int_positive(v):
+            try:
+                if v is None:
+                    return None
+                iv = int(v)
+                return iv if iv > 0 else None
+            except Exception:
+                return None
+
+        normalized = [to_int_positive(v) for v in youtube_views]
+        # If any link failed to produce a positive value, skip saving to avoid partial updates.
+        if any(v is None for v in normalized):
+            return False
+
+        views = sum(normalized)
         db.session.add(ViewStat(track_id=track.id, platform="youtube", views=views))
     elif platform == "soundcloud":
         soundcloud_url = (getattr(track, "soundcloud_url", None) or "").strip()
@@ -1211,23 +1247,23 @@ def update_track_stats(track, platform="all"):
 
 def update_all_tracks(app):
     with app.app_context():
-        tracks = Track.query.filter_by(is_active=True).all()  # فقط فعال‌ها
+        tracks = Track.query.filter_by(is_active=True).all()
         total = len(tracks)
-        print(f"[updater] شروع آپدیت {total} ترک در {datetime.now()}")
+        _updater_logger.info(f"Starting update for {total} tracks at {datetime.now()}")
 
         for i, track in enumerate(tracks, 1):
             try:
                 updated = update_track_stats(track, platform="all")
                 status = "✓" if updated else "•"
-                print(f"  {status} [{i}/{total}] {track.title}")
+                _updater_logger.info(f"  {status} [{i}/{total}] {track.title}")
             except Exception as e:
                 db.session.rollback()
-                print(f"  ✗ [{i}/{total}] {track.title}: {e}")
+                _updater_logger.exception(f"Error for {track.title}: {e}")
 
-            # کمی فاصله برای جلوگیری از rate-limit
+            # small delay to avoid rate-limiting
             time.sleep(1.5)
 
-        print("[updater] آپدیت تمام شد.")
+        _updater_logger.info("Update complete.")
 
 
 def update_all_tracks_for_platform(app, platform):
@@ -1239,8 +1275,27 @@ def update_all_tracks_for_platform(app, platform):
     with app.app_context():
         tracks = Track.query.filter_by(is_active=True).all()
         total = len(tracks)
-        print(f"[updater] شروع آپدیت {total} ترک برای پلتفرم {platform} در {datetime.now()}")
+        print(f"[updater] Starting update for {total} tracks for platform {platform} at {datetime.now()}")
 
+        if platform == "youtube":
+            # Per-track sequential behavior: update each track's YouTube stats
+            for i, track in enumerate(tracks, 1):
+                try:
+                    updated = update_track_stats(track, platform="youtube")
+                    status = "✓" if updated else "•"
+                    print(f"  {status} [{i}/{total}] {track.title} [youtube]")
+                    _updater_logger.info(f"  {status} [{i}/{total}] {track.title} [youtube]")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"  ✗ [{i}/{total}] {track.title} [youtube]: {e}")
+                    _updater_logger.exception(f"Error updating {track.title} [youtube]: {e}")
+
+                time.sleep(1.2)
+
+            print(f"[updater] Update {platform} complete.")
+            return
+
+        # Fallback: previous per-track sequential behavior for other platforms
         for i, track in enumerate(tracks, 1):
             try:
                 updated = update_track_stats(track, platform=platform)
@@ -1252,7 +1307,7 @@ def update_all_tracks_for_platform(app, platform):
 
             time.sleep(1.2)
 
-        print(f"[updater] آپدیت {platform} تمام شد.")
+        print(f"[updater] Update {platform} complete.")
 
 
 def update_artist_social_counts(app):
@@ -1260,7 +1315,7 @@ def update_artist_social_counts(app):
     with app.app_context():
         artist = Artist.query.first()
         if not artist:
-            print("[updater] هیچ آرتیستی برای بروزرسانی اجتماعی پیدا نشد.")
+            print("[updater] No artist found for social update.")
             return
 
         try:
@@ -1290,10 +1345,10 @@ def update_artist_social_counts(app):
             wiki_record.social_counts_updated_at = now
             db.session.add(wiki_record)
             db.session.commit()
-            print(f"[updater] اطلاعات اجتماعی آرتیست در {now} ذخیره شد.")
+            print(f"[updater] Artist social info saved at {now}")
         except Exception as e:
             db.session.rollback()
-            print(f"  ✗ خطا در بروزرسانی اطلاعات اجتماعی آرتیست: {e}")
+            print(f"  ✗ Error updating artist social info: {e}")
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))

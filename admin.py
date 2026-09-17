@@ -2001,8 +2001,8 @@ def update_track_views(track_id, platform):
 
     success = update_single_track_views(track, platform)
     latest_stats = track.latest_stats()
-    message = f"آمار {platform} برای آهنگ «{track.title}» به‌روزرسانی شد."
-    error_message = f"به‌روزرسانی آمار {platform} برای آهنگ «{track.title}» انجام نشد."
+    message = f"{platform.capitalize()} stats updated for track \"{track.title}\"."
+    error_message = f"Failed to update {platform} stats for track \"{track.title}\"."
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.best == "application/json":
         if success:
@@ -2029,7 +2029,7 @@ def trigger_update():
     global _update_running
 
     if _update_running:
-        flash("یک آپدیت آمار در حال اجراست. لطفاً صبر کنید.", "warning")
+        flash("An update is already running. Please wait.", "warning")
         return redirect(url_for("admin.dashboard", _anchor="content"))
 
     from flask import current_app
@@ -2057,7 +2057,7 @@ def trigger_update():
     finally:
         _update_lock.release()
 
-    flash("آپدیت آمار در پس‌زمینه شروع شد. چند دقیقه بعد نتیجه در لاگ‌ها دیده می‌شود.", "success")
+    flash("Stats update started in background. Check logs for results in a few minutes.", "success")
     return redirect(url_for("admin.dashboard", _anchor="content"))
 
 
@@ -2068,11 +2068,11 @@ def trigger_update_platform(platform):
 
     platform = (platform or "").strip().lower()
     if platform not in {"spotify", "youtube", "soundcloud"}:
-        flash("پلتفرم نامعتبر است.", "error")
+        flash("Invalid platform.", "error")
         return redirect(url_for("admin.dashboard", _anchor="content"))
 
     if _update_running:
-        flash("یک آپدیت آمار در حال اجراست. لطفاً صبر کنید.", "warning")
+        flash("An update is already running. Please wait.", "warning")
         return redirect(url_for("admin.dashboard", _anchor="content"))
 
     from flask import current_app

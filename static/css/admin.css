@@ -383,6 +383,79 @@
   color: var(--gold);
 }
 
+/* Platform cards */
+.platform-cards { margin-top: 18px; }
+.platform-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  cursor: default;
+  overflow: hidden;
+}
+.platform-card__bg {
+  position: absolute;
+  left: 50%;
+  bottom: 45%;
+  top: auto;
+  right: auto;
+  z-index: 1;
+  font-size: 160px;
+  opacity: 0.18;
+  transform: translateX(-50%) rotate(-6deg) translateY(6%);
+  pointer-events: none;
+  transition: transform 0.32s cubic-bezier(.2,.9,.3,1), opacity 0.2s ease, filter 0.2s ease;
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,0.32));
+  text-shadow: 0 10px 26px rgba(0,0,0,0.42), 0 3px 8px rgba(0,0,0,0.22);
+  -webkit-font-smoothing: antialiased;
+}
+.platform-card__icon { width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center; flex: 0 0 64px; box-shadow: 0 8px 28px rgba(0,0,0,0.32); position: relative; z-index: 3; background: transparent; }
+.platform-initial { color: white; font-weight: 700; font-size: 1.05rem; }
+.platform-card__body { flex: 1; text-align: center; position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.platform-card__label { color: rgba(255,255,255,0.95); font-weight: 800; font-size: 0.95rem; margin-bottom: 8px; }
+.platform-card__value { font-family: var(--font-display); font-size: 2.2rem; color: #fff; letter-spacing: -0.02em; font-weight: 800; text-align: center; line-height: 1; padding: 6px 8px; border-radius: 10px; }
+.platform-card__desc { margin: 6px 0 0; color: rgba(255,255,255,0.66); font-size: 0.9rem; }
+
+/* Decorative gradient text to make numbers stand out */
+.platform-card__value--fancy {
+  background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,235,170,0.95));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+.platform-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 28px 70px rgba(0,0,0,0.38); }
+
+.platform-card--youtube { background: linear-gradient(135deg, rgba(255,0,0,0.12), rgba(64,4,4,0.12)); border: 1px solid rgba(255,0,0,0.12); }
+.platform-card--youtube .platform-card__icon { background: linear-gradient(135deg,#ff0000,#c30000); }
+.platform-card--youtube .platform-card__bg { color: rgba(255, 40, 40, 0.28); }
+.platform-card--spotify { background: linear-gradient(135deg, rgba(30,215,96,0.08), rgba(4,34,12,0.06)); border: 1px solid rgba(30,215,96,0.12); }
+.platform-card--spotify .platform-card__icon { background: linear-gradient(135deg,#1DB954,#14833a); }
+.platform-card--spotify .platform-card__bg { color: rgba(45, 215, 120, 0.28); }
+.platform-card--soundcloud { background: linear-gradient(135deg, rgba(255,128,0,0.08), rgba(40,20,0,0.05)); border: 1px solid rgba(255,140,0,0.12); }
+.platform-card--soundcloud .platform-card__icon { background: linear-gradient(135deg,#ff7a00,#ff4a00); }
+.platform-card--soundcloud .platform-card__bg { color: rgba(255, 140, 40, 0.28); }
+
+.platform-card__icon svg { width: 36px; height: 36px; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); }
+.platform-card__icon .icon { display: none; }
+
+/* Hover/interaction tweaks for background icon and foreground icon */
+.platform-card:hover .platform-card__bg { transform: translateX(-50%) rotate(-6deg) translateY(2%) scale(1.08); opacity: 0.28; filter: drop-shadow(0 32px 70px rgba(0,0,0,0.44)); }
+.platform-card:hover .platform-card__icon { transform: translateY(-4px); box-shadow: 0 18px 46px rgba(0,0,0,0.48); }
+
+.platform-card:focus-visible { outline: 3px solid rgba(216,180,106,0.16); outline-offset: 6px; border-radius: 18px; }
+
+@media (max-width: 720px) {
+  .platform-card__bg { font-size: 72px; top: -8%; right: -20%; opacity: 0.12; }
+  .platform-card { padding: 14px; gap: 12px; }
+  .platform-card__icon { width: 52px; height: 52px; flex: 0 0 52px; }
+  .platform-card__label { font-size: 0.92rem; }
+  .platform-card__value { font-size: 1.45rem; }
+}
+
+
 /* Remix track picker dropdown */
 .remix-track-picker { position: relative; max-width: 720px; z-index: 9999; }
 .remix-track-picker .modern-input { padding-right: 46px; color: #e9eff8; background: rgba(12,18,34,0.92); border: 1px solid rgba(255,255,255,0.04); width:100%; box-sizing: border-box; }

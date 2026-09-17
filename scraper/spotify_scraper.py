@@ -22,13 +22,73 @@ def extract_spotify_play_count(html: str) -> int | None:
     if not html:
         return None
 
-    match = re.search(r'data-testid="playcount"[^>]*>([\d,.]+)<', html)
-    if match:
-        return int(re.sub(r"[.,]", "", match.group(1)))
+    def parse_count_string(s: str) -> int | None:
+        if not s:
+            return None
+        s = s.strip()
+        s_lower = s.lower()
 
-    match2 = re.search(r'"playcount"\s*:\s*"?([\d]+)"?', html)
-    if match2:
-        return int(match2.group(1))
+        # Handle suffixes like 1.2M, 3.4k
+        m = re.match(r"^([\d.,]+)\s*([kmb])$", s_lower)
+        if m:
+            num = m.group(1).replace(",", "")
+            try:
+                val = float(num)
+            except Exception:
+                return None
+            mult = {"k": 1_000, "m": 1_000_000, "b": 1_000_000_000}.get(m.group(2), 1)
+            return int(val * mult)
+
+        # Plain formatted number like 1,234,567 or 1.234.567
+        m2 = re.match(r"^[\d][\d,\.\s]*[\d]$", s)
+        if m2:
+            digits = re.sub(r"[^0-9]", "", s)
+            try:
+                return int(digits)
+            except Exception:
+                return None
+
+        return None
+
+    # First: common data-testid variants
+    m5 = re.search(r'data-testid\s*=\s*"playcount"[^>]*>([\d,\.\sKMkmBb]+)<', html)
+    if not m5:
+        m5 = re.search(r'data-testid\s*=\s*"play-count"[^>]*>([\d,\.\sKMkmBb]+)<', html)
+    if m5:
+        return parse_count_string(m5.group(1))
+
+    # JSON-like fields
+    m3 = re.search(r'"play_count"\s*:\s*([0-9]+)', html)
+    if m3:
+        try:
+            return int(m3.group(1))
+        except Exception:
+            return None
+
+    m2 = re.search(r'"playcount"\s*:\s*"?([\d]+)"?', html)
+    if m2:
+        try:
+            return int(m2.group(1))
+        except Exception:
+            return None
+
+    # aria-label or text containing 'plays' or localized 'پخش'
+    m4 = re.search(r'([\d][\d,\.\s]*\d)\s*(?:plays|play|پخش)', html, re.IGNORECASE)
+    if m4:
+        digits = re.sub(r"[^0-9]", "", m4.group(1))
+        try:
+            return int(digits)
+        except Exception:
+            return None
+
+    # Fallback: any standalone number that looks like a play count
+    m6 = re.search(r'([\d][\d,\.\s]*\d)', html)
+    if m6:
+        digits = re.sub(r"[^0-9]", "", m6.group(1))
+        try:
+            return int(digits)
+        except Exception:
+            return None
 
     return None
 
