@@ -73,6 +73,56 @@ def _get_redis_client():
 
 _redis_client = _get_redis_client()
 
+
+def _get_api_key() -> str | None:
+    """Return YouTube API key from environment or instance/youtube_api_key.txt fallback."""
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if key:
+        return key
+    # try instance folder sibling to project root
+    try:
+        here = os.path.dirname(__file__)
+        # project root is one level up from scraper/
+        candidate = os.path.abspath(os.path.join(here, "..", "instance", "youtube_api_key.txt"))
+        if os.path.exists(candidate):
+            with open(candidate, "r", encoding="utf-8") as fh:
+                val = fh.read().strip()
+                if val:
+                    return val
+    except Exception:
+        pass
+    return None
+
+
+def _yt_dlp_get_view_count(url: str) -> int | None:
+    """Try to get view count using yt-dlp as a fallback.
+
+    Returns int view count or None if not available or yt-dlp not installed.
+    """
+    try:
+        from yt_dlp import YoutubeDL
+    except Exception:
+        return None
+
+    try:
+        opts = {
+            'quiet': True,
+            'skip_download': True,
+            'nocheckcertificate': True,
+        }
+        with YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                return None
+            # primary key
+            vc = info.get('view_count')
+            if vc is not None:
+                return int(vc)
+            # sometimes available under 'formats' or 'entries' for playlists
+            return None
+    except Exception:
+        return None
+
 # basic in-process metrics
 _metrics = {
     "requests_total": 0,
@@ -295,7 +345,7 @@ def get_youtube_views(url: str) -> int | None:
     if not normalized_url:
         return None
     video_id_match = re.search(r"[?&]v=([A-Za-z0-9_-]{11})", normalized_url)
-    api_key = os.environ.get("YOUTUBE_API_KEY")
+    api_key = _get_api_key()
     cache_ttl = int(os.environ.get("YOUTUBE_CACHE_TTL", "600"))
 
     # use video-id based cache when possible
@@ -389,6 +439,18 @@ def get_youtube_views(url: str) -> int | None:
             break
 
     print(f"[youtube_scraper] error fetching {normalized_url}: {last_error}")
+    # final fallback: try yt-dlp if available (often avoids HTML parsing issues)
+    try:
+        val = _yt_dlp_get_view_count(normalized_url)
+        if val is not None:
+            if cache_key:
+                _cache_set(cache_key, int(val), ttl=cache_ttl)
+            _metrics["scrapes"] += 1
+            if _prometheus_enabled:
+                SCRAPES.inc()
+            return int(val)
+    except Exception:
+        pass
     return None
 
 
@@ -475,6 +537,17 @@ def get_youtube_music_views(url: str) -> int | None:
             break
 
     print(f"[youtube_scraper] error fetching music.youtube {url}: {last_error}")
+    # try yt-dlp as a last resort for music pages
+    try:
+        val = _yt_dlp_get_view_count(url)
+        if val is not None:
+            _cache_set(cache_key, int(val), ttl=cache_ttl)
+            _metrics["scrapes"] += 1
+            if _prometheus_enabled:
+                SCRAPES.inc()
+            return int(val)
+    except Exception:
+        pass
     return None
 
 
@@ -492,7 +565,7 @@ def get_youtube_views_batch(urls: list) -> dict:
     if not urls:
         return {}
 
-    api_key = os.environ.get("YOUTUBE_API_KEY")
+    api_key = _get_api_key()
     cache_ttl = int(os.environ.get("YOUTUBE_CACHE_TTL", "600"))
     results: dict = {}
     # normalize and map
