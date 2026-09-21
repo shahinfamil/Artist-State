@@ -2041,6 +2041,15 @@ def calculate_daily_growth_stats(track_ids):
                 .order_by(ViewStat.fetched_at.desc())
                 .first()
             )
+
+            if previous is None:
+                previous = (
+                    ViewStat.query.filter_by(track_id=track_id, platform=platform)
+                    .filter(db.func.date(ViewStat.fetched_at) < previous_day.isoformat())
+                    .order_by(ViewStat.fetched_at.desc())
+                    .first()
+                )
+
             previous_stats[track_id][platform] = int(previous.views or 0) if previous else 0
 
     return track_stats, previous_stats
