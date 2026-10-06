@@ -10,7 +10,7 @@ apify-client
 spotifyscraper
 gunicorn
 psycopg2-binary
+psycopg[binary]
 redis
 prometheus-client
 yt-dlp
-psycopg[binary]
