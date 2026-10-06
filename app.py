@@ -2079,6 +2079,9 @@ if database_url:
         database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     print("Using PostgreSQL")
+    safe = database_url.split("@")[-1] if "@" in database_url else database_url
+    print(f"[BOOT] DB target: ...@{safe}")
+    print(f"[BOOT] DB scheme: {database_url.split('://')[0]}")
     else:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
         print("Using SQLite (local only)")
@@ -3112,9 +3115,14 @@ def start_scheduler(app):
     return scheduler
 
 
-app = create_app()
-
-if __name__ == "__main__":
+try:
+    app = create_app()
+    print("[BOOT] App created successfully")
+except Exception as e:
+    import traceback
+    print("[BOOT ERROR] Failed to create app:")
+    traceback.print_exc()
+    raise
     if len(sys.argv) > 1 and sys.argv[1] == "update_views":
         update_all_tracks(app)
     else:
