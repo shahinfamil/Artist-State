@@ -13,3 +13,4 @@ psycopg2-binary
 redis
 prometheus-client
 yt-dlp
+psycopg[binary]
