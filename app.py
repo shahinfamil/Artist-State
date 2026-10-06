@@ -2071,13 +2071,16 @@ def create_app():
 
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
-        # Force psycopg2 driver (already in requirements as psycopg2-binary)
+        # Force psycopg2 driver
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
         elif database_url.startswith("postgresql://") and "+psycopg" not in database_url:
             database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print("Using PostgreSQL")
+        safe = database_url.split("@")[-1] if "@" in database_url else database_url
+        print(f"[BOOT] DB target: ...@{safe}")
+        print(f"[BOOT] DB scheme: {database_url.split('://')[0]}")
     else:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
         print("Using SQLite (local only)")
@@ -3096,7 +3099,6 @@ def register_routes(app):
 
 def start_scheduler(app):
     """آپدیت خودکار ویوها هر روز ساعت ۳ بامداد"""
-
     scheduler = BackgroundScheduler(timezone="Asia/Tehran")
     scheduler.add_job(
         func=lambda: update_all_tracks(app),
@@ -3110,6 +3112,17 @@ def start_scheduler(app):
     print("[scheduler] آپدیت روزانه ساعت ۳:۰۰ بامداد تنظیم شد.")
     return scheduler
 
+
+try:
+    app = create_app()
+    print("[BOOT] App created successfully")
+except Exception:
+    import traceback
+    print("[BOOT ERROR] Failed to create app:")
+    traceback.print_exc()
+    raise
+
+if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "update_views":
         update_all_tracks(app)
     else:
