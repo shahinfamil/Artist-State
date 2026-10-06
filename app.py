@@ -2070,12 +2070,15 @@ def initialize_database(app, reset=False):
 def create_app():
     app = Flask(__name__)
 
-    database_url = os.environ.get("DATABASE_URL")
-    if database_url:
-        if database_url.startswith("postgres://"):
-            database_url = database_url.replace("postgres://", "postgresql://", 1)
-        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-        print("Using PostgreSQL")
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    # Force psycopg2 driver (already in requirements as psycopg2-binary)
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif database_url.startswith("postgresql://") and "+psycopg" not in database_url:
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    print("Using PostgreSQL")
     else:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
         print("Using SQLite (local only)")
